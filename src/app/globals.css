@@ -1,9 +1,8 @@
 @import "tailwindcss";
 
-/* Set default variables to our cinematic dark theme */
 :root {
-  --background: #0f172a; 
-  --foreground: #f8fafc; 
+  --background: #080a10; /* Deeper, more cinematic dark */
+  --foreground: #f0f3ff; /* Softer, high-contrast white */
 }
 
 @theme inline {
@@ -13,20 +12,30 @@
   --font-mono: var(--font-geist-mono);
 }
 
-/* Base styling with radial gradient for depth */
 body {
   background-color: var(--background);
-  background-image: radial-gradient(circle at top right, #1e293b, #0f172a);
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
   min-height: 100vh;
 }
 
-/* Custom reusable utility class for Glassmorphism UI */
-.glass-panel {
-  background-color: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
+/* * Reusable utility for Netflix-style Frosted Glassmorphism 
+ * with a subtle glow and border.
+ */
+.glass-premium {
+  background-color: rgba(255, 255, 255, 0.03); /* Semi-transparent white */
+  backdrop-filter: blur(25px); /* Strong blur for depth */
+  -webkit-backdrop-filter: blur(25px);
+  border: 1px solid rgba(255, 255, 255, 0.08); /* Minimal, frosted border */
+  box-shadow: 
+    0 25px 50px -12px rgba(0, 0, 0, 0.5), /* Deep shadows */
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.04); /* Inset frost glow */
+}
+
+/* Subtler glass effect for larger panels */
+.glass-panel-light {
+  background-color: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
