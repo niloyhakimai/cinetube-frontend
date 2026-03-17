@@ -77,7 +77,13 @@ export default function Navbar() {
                       <p className="text-sm text-white font-medium truncate">{user.name}</p>
                       <p className="text-xs text-gray-400 truncate">{user.email}</p>
                     </div>
-                    
+                    <Link 
+                      href="/profile" 
+                      onClick={() => setIsProfileOpen(false)}
+                      className="block px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors border-b border-white/5 pb-3 mb-1"
+                    >
+                      My Profile
+                    </Link>
                     {user.role === 'ADMIN' && (
                       <Link 
                         href="/admin" 
