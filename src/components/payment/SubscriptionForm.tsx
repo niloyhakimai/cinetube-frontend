@@ -35,17 +35,26 @@ export default function SubscriptionForm({ clientSecret, planName, price }: Subs
       toast.error(error.message || 'Payment failed. Please try again.');
       setIsProcessing(false);
     } else if (paymentIntent && paymentIntent.status === 'succeeded') {
-      toast.success(`Welcome to ${planName}! Your subscription is now active.`);
+      // সাকসেস মেসেজ একটু ডিটেইলস দাও
+      toast.success(
+        (t) => (
+          <span>
+            <b>Payment Successful!</b> <br />
+            We've sent a confirmation email to your inbox. 📧
+          </span>
+        ),
+        { duration: 6000 }
+      );
       
-      // Update local storage so the whole app knows immediately!
+      // Local storage আপডেট
       const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
       storedUser.subscriptionPlan = planName.includes('Yearly') ? 'YEARLY' : 'MONTHLY';
       storedUser.subscriptionStatus = 'ACTIVE';
       localStorage.setItem('user', JSON.stringify(storedUser));
 
       setTimeout(() => {
-        window.location.href = '/profile'; // Force a full page reload to update all states
-      }, 1500);
+        window.location.href = '/profile';
+      }, 3000);
     }
   };
 

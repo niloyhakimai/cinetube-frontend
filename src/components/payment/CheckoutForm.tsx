@@ -41,12 +41,22 @@ export default function CheckoutForm({ clientSecret, purchaseId, mediaId }: Chec
       try {
         // Tell our backend the payment was successful
         await api.post('/payments/confirm', { purchaseId });
-        toast.success('Payment successful! Enjoy your premium content.');
+        
+        // Success toast with confirmation
+        toast.success(
+          (t) => (
+            <span>
+              <b>Payment Successful! 🎉</b> <br />
+              Your premium content is now available. 🎬
+            </span>
+          ),
+          { duration: 6000 }
+        );
         
         // Redirect back to the movie details page
         setTimeout(() => {
           router.push(`/movies/${mediaId}`);
-        }, 1500);
+        }, 3000);
       } catch (err) {
         console.error("Backend Confirmation Error:", err);
         toast.error('Payment verified but failed to update the database.');
