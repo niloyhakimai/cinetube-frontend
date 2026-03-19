@@ -1,8 +1,10 @@
 "use client";
 
+import axios from 'axios';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import toast, { Toaster } from 'react-hot-toast';
 import { api } from '@/lib/axios';
 
 interface User {
@@ -29,6 +31,9 @@ export default function UserProfile() {
   const [watchlistCount, setWatchlistCount] = useState(0);
   const [reviews, setReviews] = useState<ReviewActivity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [editingReviewId, setEditingReviewId] = useState<string | null>(null);
+  const [editRating, setEditRating] = useState<number>(10);
+  const [editContent, setEditContent] = useState<string>('');
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
@@ -41,16 +46,13 @@ export default function UserProfile() {
 
     const fetchUserData = async () => {
       try {
-        // Fetch Watchlist
         const watchlistRes = await api.get('/watchlist');
         setWatchlistCount(watchlistRes.data.watchlist.length);
 
-        // Fetch User's Reviews
         const reviewsRes = await api.get('/reviews/me');
         setReviews(reviewsRes.data.reviews);
-
       } catch (error) {
-        console.error("Error fetching user data:", error);
+        console.error('Error fetching user data:', error);
       } finally {
         setIsLoading(false);
       }
@@ -58,6 +60,45 @@ export default function UserProfile() {
 
     fetchUserData();
   }, [router]);
+
+  const handleEditSubmit = async (reviewId: string) => {
+    try {
+      await api.put(`/reviews/${reviewId}`, {
+        rating: editRating,
+        content: editContent,
+      });
+
+      setReviews(reviews.map((review) =>
+        review.id === reviewId
+          ? { ...review, rating: editRating, content: editContent }
+          : review,
+      ));
+      setEditingReviewId(null);
+    } catch (error: unknown) {
+      const message = axios.isAxiosError<{ message?: string }>(error)
+        ? error.response?.data?.message
+        : undefined;
+
+      alert(message || 'Failed to update review');
+    }
+  };
+
+  const handleDeleteReview = async (reviewId: string) => {
+    if (!window.confirm('Are you sure you want to delete this pending review?')) return;
+
+    try {
+      await api.delete(`/reviews/${reviewId}`);
+      setReviews(reviews.filter((review) => review.id !== reviewId));
+      toast.success('Review deleted successfully');
+    } catch (error: unknown) {
+      const message = axios.isAxiosError<{ message?: string }>(error)
+        ? error.response?.data?.message
+        : undefined;
+
+      console.error('Error deleting review:', error);
+      toast.error(message || 'Failed to delete review');
+    }
+  };
 
   if (isLoading || !user) {
     return (
@@ -69,21 +110,20 @@ export default function UserProfile() {
 
   return (
     <div className="min-h-screen bg-[#050505] text-white pt-24 pb-10">
+      <Toaster position="top-center" />
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        
-        {/* Profile Header Card */}
         <div className="bg-[#111]/80 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl overflow-hidden relative mb-8">
           <div className="h-40 bg-gradient-to-r from-red-900/40 to-black w-full absolute top-0 left-0"></div>
-          
+
           <div className="relative pt-20 px-8 pb-8 flex flex-col sm:flex-row items-center sm:items-end gap-6">
             <div className="w-32 h-32 rounded-full border-4 border-[#111] bg-red-600 flex items-center justify-center text-5xl font-extrabold shadow-xl z-10 shrink-0">
               {user.name.charAt(0).toUpperCase()}
             </div>
-            
-            <div className="text-center sm:text-left flex-grow mb-2">
+
+            <div className="text-center sm:text-left grow mb-2">
               <h1 className="text-3xl font-bold">{user.name}</h1>
               <p className="text-gray-400 mt-1">{user.email}</p>
-              
+
               <div className="flex flex-wrap justify-center sm:justify-start gap-2 mt-3">
                 <span className="bg-white/10 border border-white/20 text-xs px-3 py-1 rounded-full uppercase tracking-wider font-semibold">
                   {user.role}
@@ -93,7 +133,7 @@ export default function UserProfile() {
                 </span>
               </div>
             </div>
-            
+
             <div className="flex gap-3">
               <button className="bg-white/10 hover:bg-white/20 border border-white/20 text-white px-5 py-2 rounded-lg font-medium transition-colors text-sm">
                 Edit Profile
@@ -102,10 +142,7 @@ export default function UserProfile() {
           </div>
         </div>
 
-        {/* Dashboard Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          
-          {/* Stats Cards */}
           <div className="md:col-span-1 space-y-6">
             <div className="bg-[#111]/60 backdrop-blur-md p-6 rounded-xl border border-white/5">
               <h3 className="text-gray-400 text-sm font-medium mb-1">My Watchlist</h3>
@@ -122,10 +159,9 @@ export default function UserProfile() {
             </div>
           </div>
 
-          {/* Activity/History Section */}
           <div className="md:col-span-2 bg-[#111]/60 backdrop-blur-md p-6 rounded-xl border border-white/5">
             <h2 className="text-xl font-bold mb-6 border-b border-white/10 pb-4">Recent Activity (Reviews)</h2>
-            
+
             {reviews.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 text-gray-500">
                 <svg className="w-12 h-12 mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -137,26 +173,81 @@ export default function UserProfile() {
             ) : (
               <div className="space-y-4">
                 {reviews.map((review) => (
-                  <div key={review.id} className="bg-[#222]/50 p-4 rounded-lg border border-white/5">
-                    <div className="flex justify-between items-start mb-2">
-                      <h4 className="font-bold text-white">Reviewed: {review.media.title}</h4>
-                      <div className="flex gap-2">
+                  <div key={review.id} className="bg-[#222]/50 p-5 rounded-lg border border-white/5 transition-all">
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <h4 className="font-bold text-white text-lg">Reviewed: {review.media.title}</h4>
+                        <p className="text-xs text-gray-500 mt-1">{new Date(review.createdAt).toLocaleDateString()}</p>
+                      </div>
+                      <div className="flex gap-2 items-center">
                         {!review.isApproved && (
-                          <span className="bg-yellow-500/20 text-yellow-500 text-xs px-2 py-0.5 rounded font-bold">Pending</span>
+                          <span className="bg-yellow-500/20 text-yellow-500 text-xs px-2 py-1 rounded font-bold uppercase tracking-wider">Pending</span>
                         )}
-                        <span className="bg-red-600/20 text-red-500 text-xs px-2 py-0.5 rounded font-bold">★ {review.rating}/10</span>
+                        <span className="bg-red-600/20 text-red-500 text-sm px-3 py-1 rounded font-bold">★ {review.rating}/10</span>
                       </div>
                     </div>
-                    <p className="text-gray-400 text-sm italic">"{review.content}"</p>
-                    <p className="text-xs text-gray-500 mt-2">{new Date(review.createdAt).toLocaleDateString()}</p>
+
+                    {editingReviewId === review.id ? (
+                      <div className="mt-4 bg-[#111] p-4 rounded-md border border-white/10">
+                        <label className="block text-xs text-gray-400 mb-1">Rating (1-10)</label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="10"
+                          value={editRating}
+                          onChange={(e) => setEditRating(Number(e.target.value))}
+                          className="w-full bg-[#333] text-white px-3 py-2 rounded mb-3 focus:outline-none focus:border-red-500"
+                        />
+                        <label className="block text-xs text-gray-400 mb-1">Review Content</label>
+                        <textarea
+                          rows={3}
+                          value={editContent}
+                          onChange={(e) => setEditContent(e.target.value)}
+                          className="w-full bg-[#333] text-white px-3 py-2 rounded mb-3 focus:outline-none focus:border-red-500 resize-none"
+                        />
+                        <div className="flex gap-2">
+                          <button onClick={() => handleEditSubmit(review.id)} className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm font-bold">Save Changes</button>
+                          <button onClick={() => setEditingReviewId(null)} className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded text-sm font-bold">Cancel</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-gray-300 text-base leading-relaxed mt-2">&quot;{review.content}&quot;</p>
+
+                        {!review.isApproved && (
+                          <div className="flex gap-4 mt-4 pt-4 border-t border-white/5">
+                            <button
+                              onClick={() => {
+                                setEditingReviewId(review.id);
+                                setEditRating(review.rating);
+                                setEditContent(review.content);
+                              }}
+                              className="text-gray-400 hover:text-blue-500 text-sm font-medium flex items-center gap-1 transition-colors"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDeleteReview(review.id)}
+                              className="text-gray-400 hover:text-red-500 text-sm font-medium flex items-center gap-1 transition-colors"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                              Delete
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
                 ))}
               </div>
             )}
           </div>
-
         </div>
-
       </div>
     </div>
   );
