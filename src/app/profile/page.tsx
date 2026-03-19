@@ -7,11 +7,14 @@ import Link from 'next/link';
 import toast, { Toaster } from 'react-hot-toast';
 import { api } from '@/lib/axios';
 
+// Update: Added subscription fields to the interface
 interface User {
   id: string;
   name: string;
   email: string;
   role: string;
+  subscriptionPlan?: string;
+  subscriptionStatus?: string;
 }
 
 interface ReviewActivity {
@@ -36,6 +39,7 @@ export default function UserProfile() {
   const [editContent, setEditContent] = useState<string>('');
 
   useEffect(() => {
+    // Note: We are relying on localStorage for instant UI updates after payment
     const storedUser = localStorage.getItem('user');
     if (!storedUser) {
       router.push('/login');
@@ -74,6 +78,7 @@ export default function UserProfile() {
           : review,
       ));
       setEditingReviewId(null);
+      toast.success('Review updated successfully');
     } catch (error: unknown) {
       const message = axios.isAxiosError<{ message?: string }>(error)
         ? error.response?.data?.message
@@ -128,9 +133,17 @@ export default function UserProfile() {
                 <span className="bg-white/10 border border-white/20 text-xs px-3 py-1 rounded-full uppercase tracking-wider font-semibold">
                   {user.role}
                 </span>
-                <span className="bg-green-500/10 border border-green-500/30 text-green-500 text-xs px-3 py-1 rounded-full uppercase tracking-wider font-semibold">
-                  Active Member
-                </span>
+                
+                {/* Update: Dynamic Premium Badge Rendering */}
+                {user.subscriptionStatus === 'ACTIVE' ? (
+                  <span className="bg-yellow-500/20 border border-yellow-500/50 text-yellow-500 text-xs px-3 py-1 rounded-full uppercase tracking-wider font-extrabold shadow-[0_0_10px_rgba(234,179,8,0.2)]">
+                    PRO {user.subscriptionPlan === 'YEARLY' ? 'YEARLY' : 'MONTHLY'}
+                  </span>
+                ) : (
+                  <span className="bg-green-500/10 border border-green-500/30 text-green-500 text-xs px-3 py-1 rounded-full uppercase tracking-wider font-semibold">
+                    Free Member
+                  </span>
+                )}
               </div>
             </div>
 

@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
 const plans = [
-  // ... (keep the same plans array you had before)
   {
     name: "Free",
     price: "$0",
@@ -39,17 +38,26 @@ const plans = [
 
 export default function Pricing() {
   const [user, setUser] = useState<any>(null);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
       setUser(JSON.parse(storedUser));
     }
   }, []);
 
+  // Hydration error ঠেকানোর জন্য
+  if (!mounted) return null;
+
+  // যদি ইউজারের সাবস্ক্রিপশন স্ট্যাটাস ACTIVE হয়, তাহলে এই সেকশনটি আর দেখাবে না
+  if (user && user.subscriptionStatus === 'ACTIVE') {
+    return null; 
+  }
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-      {/* ... keeping the heading and layout same ... */}
       <div className="text-center max-w-3xl mx-auto mb-16">
         <h2 className="text-3xl md:text-5xl font-bold text-white mb-4">Choose Your Plan</h2>
         <p className="text-gray-400 text-lg">
@@ -61,7 +69,6 @@ export default function Pricing() {
         {plans.map((plan) => (
           <div key={plan.name} className={`relative flex flex-col p-8 rounded-2xl backdrop-blur-xl border ${plan.isPopular ? 'bg-red-950/20 border-red-500/50 scale-105 z-10' : 'bg-[#111] border-white/10'} transition-transform duration-300 hover:scale-105`}>
             
-            {/* ... keeping the plan UI same ... */}
             {plan.isPopular && (
               <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">
                 Most Popular
@@ -83,7 +90,6 @@ export default function Pricing() {
               ))}
             </ul>
 
-            {/* Dynamic Button Link */}
             <Link 
               href={user ? `/subscribe/${plan.planId}` : '/login'} 
               className={`w-full py-3 rounded-lg font-bold text-center transition-all ${plan.buttonClasses}`}

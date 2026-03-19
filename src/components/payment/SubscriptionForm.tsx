@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useStripe, useElements, CardElement } from '@stripe/react-stripe-js';
 import toast from 'react-hot-toast';
-import { useRouter } from 'next/navigation';
 
 interface SubscriptionFormProps {
   clientSecret: string;
@@ -14,7 +13,6 @@ interface SubscriptionFormProps {
 export default function SubscriptionForm({ clientSecret, planName, price }: SubscriptionFormProps) {
   const stripe = useStripe();
   const elements = useElements();
-  const router = useRouter();
   const [isProcessing, setIsProcessing] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -39,14 +37,14 @@ export default function SubscriptionForm({ clientSecret, planName, price }: Subs
     } else if (paymentIntent && paymentIntent.status === 'succeeded') {
       toast.success(`Welcome to ${planName}! Your subscription is now active.`);
       
-      // Update local storage user data slightly so the frontend knows they are premium
+      // Update local storage so the whole app knows immediately!
       const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
       storedUser.subscriptionPlan = planName.includes('Yearly') ? 'YEARLY' : 'MONTHLY';
+      storedUser.subscriptionStatus = 'ACTIVE';
       localStorage.setItem('user', JSON.stringify(storedUser));
 
-      // Redirect to profile or home
       setTimeout(() => {
-        router.push('/profile');
+        window.location.href = '/profile'; // Force a full page reload to update all states
       }, 1500);
     }
   };
