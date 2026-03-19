@@ -37,6 +37,9 @@ export default function UserProfile() {
   const [editingReviewId, setEditingReviewId] = useState<string | null>(null);
   const [editRating, setEditRating] = useState<number>(10);
   const [editContent, setEditContent] = useState<string>('');
+  
+  // NEW: State for the cancel button
+  const [isCanceling, setIsCanceling] = useState(false);
 
   useEffect(() => {
     // Note: We are relying on localStorage for instant UI updates after payment
@@ -64,6 +67,28 @@ export default function UserProfile() {
 
     fetchUserData();
   }, [router]);
+
+  // NEW: Cancel Subscription Function
+  const handleCancelSubscription = async () => {
+    if (!window.confirm('Are you sure you want to cancel your Premium Plan? You will lose access to Pro features immediately.')) return;
+
+    setIsCanceling(true);
+    try {
+      await api.post('/subscriptions/cancel');
+      toast.success('Your subscription has been canceled.');
+
+      // Update local storage and UI instantly
+      if (user) {
+        const updatedUser = { ...user, subscriptionStatus: 'CANCELED', subscriptionPlan: 'FREE' };
+        setUser(updatedUser);
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to cancel subscription');
+    } finally {
+      setIsCanceling(false);
+    }
+  };
 
   const handleEditSubmit = async (reviewId: string) => {
     try {
@@ -148,6 +173,17 @@ export default function UserProfile() {
             </div>
 
             <div className="flex gap-3">
+              {/* NEW: Cancel Button (Only show if ACTIVE) */}
+              {user.subscriptionStatus === 'ACTIVE' && (
+                <button 
+                  onClick={handleCancelSubscription}
+                  disabled={isCanceling}
+                  className="bg-red-600/20 hover:bg-red-600 text-red-500 hover:text-white border border-red-600/50 px-5 py-2 rounded-lg font-medium transition-colors text-sm disabled:opacity-50"
+                >
+                  {isCanceling ? 'Canceling...' : 'Cancel Plan'}
+                </button>
+              )}
+
               <button className="bg-white/10 hover:bg-white/20 border border-white/20 text-white px-5 py-2 rounded-lg font-medium transition-colors text-sm">
                 Edit Profile
               </button>
