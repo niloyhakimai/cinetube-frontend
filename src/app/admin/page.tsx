@@ -5,7 +5,7 @@ import toast, { Toaster } from 'react-hot-toast';
 import { api } from '@/lib/axios';
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState('add-media');
+  const [activeTab, setActiveTab] = useState('overview');
   
   // States for Add Media
   const [isAdding, setIsAdding] = useState(false);
@@ -14,26 +14,28 @@ export default function AdminDashboard() {
     director: '', cast: '', streamingPlatform: '', priceType: 'FREE', streamingLink: '',
   });
 
-  // States for Pending Reviews
-  const [pendingReviews, setPendingReviews] = useState<any[]>([]);
-  const [isLoadingReviews, setIsLoadingReviews] = useState(false);
+  // States for Dashboard Overview & Reviews
+  const [adminData, setAdminData] = useState<any>(null);
+  const [isLoadingStats, setIsLoadingStats] = useState(false);
 
-  // Fetch pending reviews when the tab changes
+  // Fetch Dashboard Stats & Pending Reviews when tab changes
   useEffect(() => {
-    if (activeTab === 'manage-reviews') {
-      fetchPendingReviews();
+    if (activeTab === 'overview' || activeTab === 'manage-reviews') {
+      fetchAdminStats();
     }
   }, [activeTab]);
 
-  const fetchPendingReviews = async () => {
-    setIsLoadingReviews(true);
+  const fetchAdminStats = async () => {
+    setIsLoadingStats(true);
     try {
-      const response = await api.get('/reviews/admin/pending');
-      setPendingReviews(response.data.reviews);
+      // Fetching all admin data from the new endpoint
+      const response = await api.get('/admin/dashboard');
+      setAdminData(response.data);
     } catch (error) {
-      toast.error('Failed to load pending reviews');
+      console.error("Failed to load admin data", error);
+      toast.error('Failed to load admin stats');
     } finally {
-      setIsLoadingReviews(false);
+      setIsLoadingStats(false);
     }
   };
 
@@ -41,10 +43,30 @@ export default function AdminDashboard() {
     try {
       await api.put(`/reviews/${reviewId}/approve`);
       toast.success('Review approved successfully!');
-      // Remove the approved review from the list
-      setPendingReviews(pendingReviews.filter(r => r.id !== reviewId));
+      // Optimistic UI Update
+      setAdminData((prev: any) => ({
+        ...prev,
+        stats: { ...prev.stats, pendingReviewCount: prev.stats.pendingReviewCount - 1 },
+        pendingReviews: prev.pendingReviews.filter((r: any) => r.id !== reviewId)
+      }));
     } catch (error) {
       toast.error('Failed to approve review');
+    }
+  };
+
+  const handleDeleteReview = async (reviewId: string) => {
+    if (!window.confirm("Are you sure you want to delete this review?")) return;
+    try {
+      await api.delete(`/reviews/${reviewId}`);
+      toast.success('Review deleted successfully!');
+      // Optimistic UI Update
+      setAdminData((prev: any) => ({
+        ...prev,
+        stats: { ...prev.stats, pendingReviewCount: prev.stats.pendingReviewCount - 1 },
+        pendingReviews: prev.pendingReviews.filter((r: any) => r.id !== reviewId)
+      }));
+    } catch (error) {
+      toast.error('Failed to delete review');
     }
   };
 
@@ -79,32 +101,89 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="bg-[#111] p-8 rounded-xl border border-white/10 shadow-2xl">
+    <div className="bg-[#111] p-4 md:p-8 rounded-xl border border-white/10 shadow-2xl">
       <Toaster position="top-right" />
       
       {/* Tabs Navigation */}
-      <div className="flex space-x-4 mb-8 border-b border-white/10 pb-4">
+      <div className="flex flex-wrap gap-2 md:space-x-4 mb-8 border-b border-white/10 pb-4">
+        <button 
+          onClick={() => setActiveTab('overview')}
+          className={`px-4 py-2 font-bold rounded transition-colors ${activeTab === 'overview' ? 'bg-red-600 text-white shadow-[0_0_15px_rgba(229,9,20,0.3)]' : 'text-gray-400 hover:text-white bg-white/5'}`}
+        >
+          Dashboard Stats
+        </button>
         <button 
           onClick={() => setActiveTab('add-media')}
-          className={`px-4 py-2 font-bold rounded transition-colors ${activeTab === 'add-media' ? 'bg-red-600 text-white' : 'text-gray-400 hover:text-white'}`}
+          className={`px-4 py-2 font-bold rounded transition-colors ${activeTab === 'add-media' ? 'bg-red-600 text-white shadow-[0_0_15px_rgba(229,9,20,0.3)]' : 'text-gray-400 hover:text-white bg-white/5'}`}
         >
           Add Media
         </button>
         <button 
           onClick={() => setActiveTab('manage-reviews')}
-          className={`px-4 py-2 font-bold rounded transition-colors ${activeTab === 'manage-reviews' ? 'bg-red-600 text-white' : 'text-gray-400 hover:text-white'}`}
+          className={`px-4 py-2 font-bold rounded transition-colors flex items-center gap-2 ${activeTab === 'manage-reviews' ? 'bg-red-600 text-white shadow-[0_0_15px_rgba(229,9,20,0.3)]' : 'text-gray-400 hover:text-white bg-white/5'}`}
         >
           Manage Reviews
-          {pendingReviews.length > 0 && activeTab !== 'manage-reviews' && (
-            <span className="ml-2 bg-yellow-500 text-black px-2 py-0.5 rounded-full text-xs">New</span>
+          {adminData?.stats?.pendingReviewCount > 0 && (
+            <span className="bg-yellow-500 text-black px-2 py-0.5 rounded-full text-xs animate-pulse">
+              {adminData.stats.pendingReviewCount}
+            </span>
           )}
         </button>
       </div>
 
-      {/* Add Media Tab Content */}
+      {/* --- TAB 1: DASHBOARD OVERVIEW --- */}
+      {activeTab === 'overview' && (
+        <div className="space-y-8 animate-in fade-in duration-300">
+          {isLoadingStats ? (
+            <div className="text-center py-10 text-gray-400">Loading system stats...</div>
+          ) : (
+            <>
+              {/* Stats Grid */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                {[
+                  { label: 'Total Users', value: adminData?.stats?.totalUsers || 0, icon: '👥', border: 'border-blue-500/30' },
+                  { label: 'Total Media', value: adminData?.stats?.totalMedia || 0, icon: '🎬', border: 'border-purple-500/30' },
+                  { label: 'Published Reviews', value: adminData?.stats?.totalReviews || 0, icon: '⭐', border: 'border-green-500/30' },
+                  { label: 'Pending Reviews', value: adminData?.stats?.pendingReviewCount || 0, icon: '⏳', border: 'border-yellow-500/50 shadow-[0_0_15px_rgba(234,179,8,0.1)]' }
+                ].map((stat, i) => (
+                  <div key={i} className={`bg-[#1a1a1a] p-5 rounded-xl border ${stat.border} flex flex-col items-center justify-center text-center`}>
+                    <span className="text-2xl mb-2">{stat.icon}</span>
+                    <span className="text-gray-400 text-xs font-bold uppercase tracking-wider">{stat.label}</span>
+                    <span className="text-3xl font-black text-white mt-1">{stat.value}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Trending Media List */}
+              <div>
+                <h3 className="text-xl font-bold mb-4 border-b border-white/10 pb-2">Trending Content</h3>
+                <div className="bg-[#1a1a1a] border border-white/5 rounded-xl overflow-hidden">
+                  {adminData?.mediaStats?.length === 0 ? (
+                    <p className="p-5 text-gray-500 text-center">No media data available yet.</p>
+                  ) : (
+                    adminData?.mediaStats?.map((media: any, idx: number) => (
+                      <div key={media.id} className={`p-4 flex justify-between items-center ${idx !== adminData.mediaStats.length - 1 ? 'border-b border-white/5' : ''}`}>
+                        <div>
+                          <p className="font-bold text-white">{media.title}</p>
+                          <p className="text-xs text-gray-400 mt-1 uppercase">{media.type} • {media.viewCount} Views</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-yellow-500 font-bold text-lg">★ {media.avgRating}</p>
+                          <p className="text-xs text-gray-500">{media.reviewCount} Reviews</p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* --- TAB 2: ADD MEDIA --- */}
       {activeTab === 'add-media' && (
-        <form onSubmit={handleMediaSubmit} className="space-y-6">
-          {/* ... Keep the exact same form fields from previous step here ... */}
+        <form onSubmit={handleMediaSubmit} className="space-y-6 animate-in fade-in duration-300">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
               <div>
@@ -153,43 +232,55 @@ export default function AdminDashboard() {
             <textarea name="synopsis" value={formData.synopsis} onChange={handleMediaChange} rows={4} required className="w-full bg-[#222] text-white px-4 py-3 rounded focus:outline-none focus:border-red-600 resize-none"></textarea>
           </div>
 
-          <button type="submit" disabled={isAdding} className="px-8 bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded transition-colors mt-4">
-            {isAdding ? 'Adding...' : 'Publish Media'}
-          </button>
+          <div className="flex justify-end pt-4">
+            <button type="submit" disabled={isAdding} className="px-8 bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded transition-colors shadow-[0_0_15px_rgba(229,9,20,0.4)]">
+              {isAdding ? 'Publishing...' : 'Publish Media'}
+            </button>
+          </div>
         </form>
       )}
 
-      {/* Manage Reviews Tab Content */}
+      {/* --- TAB 3: MANAGE REVIEWS --- */}
       {activeTab === 'manage-reviews' && (
-        <div className="space-y-6">
-          {isLoadingReviews ? (
-            <div className="text-center py-10 text-gray-400 animate-pulse">Loading pending reviews...</div>
-          ) : pendingReviews.length === 0 ? (
-            <div className="text-center py-10 text-gray-500 bg-[#222] rounded-lg border border-white/5">
-              No pending reviews. Everything is up to date!
+        <div className="space-y-4 animate-in fade-in duration-300">
+          {isLoadingStats ? (
+            <div className="text-center py-10 text-gray-400">Loading pending reviews...</div>
+          ) : adminData?.pendingReviews?.length === 0 ? (
+            <div className="text-center py-16 text-gray-500 bg-[#1a1a1a] rounded-xl border border-white/5">
+              <svg className="w-16 h-16 mx-auto mb-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M5 13l4 4L19 7" /></svg>
+              <h3 className="text-xl font-bold text-white mb-1">All caught up!</h3>
+              <p>No pending reviews to approve.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-4">
-              {pendingReviews.map((review) => (
-                <div key={review.id} className="bg-[#222] p-5 rounded-lg border border-white/10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="bg-red-600/20 text-red-500 px-2 py-0.5 rounded text-xs font-bold uppercase">Movie: {review.media.title}</span>
-                      <span className="bg-yellow-500/20 text-yellow-500 px-2 py-0.5 rounded text-xs font-bold">★ {review.rating}/10</span>
-                    </div>
-                    <p className="text-white font-medium mb-1">"{review.content}"</p>
-                    <p className="text-xs text-gray-500">By: {review.user.name} ({review.user.email}) - {new Date(review.createdAt).toLocaleDateString()}</p>
+            adminData?.pendingReviews?.map((review: any) => (
+              <div key={review.id} className="bg-[#1a1a1a] p-5 rounded-xl border border-white/10 flex flex-col md:flex-row justify-between items-start md:items-center gap-5 hover:border-white/20 transition-all">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="bg-red-600/20 text-red-500 px-2 py-0.5 rounded text-xs font-bold uppercase border border-red-500/20">{review.media.title}</span>
+                    <span className="bg-yellow-500/20 text-yellow-500 px-2 py-0.5 rounded text-xs font-bold">★ {review.rating}/10</span>
                   </div>
-                  
+                  <p className="text-gray-200 font-medium mb-2 italic">"{review.content}"</p>
+                  <p className="text-xs text-gray-500">
+                    By <strong className="text-gray-400">{review.user.name}</strong> • {new Date(review.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
+                
+                <div className="flex gap-2 w-full md:w-auto shrink-0">
+                  <button 
+                    onClick={() => handleDeleteReview(review.id)}
+                    className="flex-1 md:flex-none bg-red-600/10 hover:bg-red-600 text-red-500 hover:text-white border border-red-600/30 px-4 py-2 rounded text-sm font-bold transition-all"
+                  >
+                    Delete
+                  </button>
                   <button 
                     onClick={() => handleApproveReview(review.id)}
-                    className="shrink-0 bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded font-bold transition-colors shadow-lg"
+                    className="flex-1 md:flex-none bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded text-sm font-bold transition-all shadow-[0_0_15px_rgba(22,163,7,0.4)]"
                   >
-                    Approve Review
+                    Approve
                   </button>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))
           )}
         </div>
       )}
