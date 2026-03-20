@@ -7,22 +7,30 @@ import { api } from '@/lib/axios';
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('overview');
   
-  // States for Add Media
+  // States for Add/Edit Media
   const [isAdding, setIsAdding] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     title: '', synopsis: '', genre: '', releaseYear: '', 
     director: '', cast: '', streamingPlatform: '', priceType: 'FREE', streamingLink: '',
-    isFeatured: false, // <-- নতুন State যোগ করা হলো
+    isFeatured: false,
   });
 
   // States for Dashboard Overview & Reviews
   const [adminData, setAdminData] = useState<any>(null);
   const [isLoadingStats, setIsLoadingStats] = useState(false);
 
-  // Fetch Dashboard Stats & Pending Reviews when tab changes
+  // States for Manage Media List
+  const [mediaList, setMediaList] = useState<any[]>([]);
+  const [isLoadingMedia, setIsLoadingMedia] = useState(false);
+
+  // Fetch Dashboard Stats, Pending Reviews, or Media List when tab changes
   useEffect(() => {
     if (activeTab === 'overview' || activeTab === 'manage-reviews') {
       fetchAdminStats();
+    }
+    if (activeTab === 'manage-media') {
+      fetchMediaList();
     }
   }, [activeTab]);
 
@@ -36,6 +44,18 @@ export default function AdminDashboard() {
       toast.error('Failed to load admin stats');
     } finally {
       setIsLoadingStats(false);
+    }
+  };
+
+  const fetchMediaList = async () => {
+    setIsLoadingMedia(true);
+    try {
+      const response = await api.get('/media');
+      setMediaList(response.data.media || []);
+    } catch (error) {
+      toast.error('Failed to load media list');
+    } finally {
+      setIsLoadingMedia(false);
     }
   };
 
@@ -68,11 +88,40 @@ export default function AdminDashboard() {
     }
   };
 
+  // --- NEW: Edit & Delete Media Functions ---
+  const handleEditMediaClick = (media: any) => {
+    setEditId(media.id);
+    setFormData({
+      title: media.title || '',
+      synopsis: media.synopsis || '',
+      genre: media.genre ? media.genre.join(', ') : '',
+      releaseYear: media.releaseYear?.toString() || '',
+      director: media.director || '',
+      cast: media.cast ? media.cast.join(', ') : '',
+      streamingPlatform: media.streamingPlatform ? media.streamingPlatform.join(', ') : '',
+      priceType: media.priceType || 'FREE',
+      streamingLink: media.streamingLink || '',
+      isFeatured: media.isFeatured || false,
+    });
+    setActiveTab('add-media'); 
+  };
+
+  const handleDeleteMedia = async (mediaId: string) => {
+    if (!window.confirm("Are you sure you want to permanently delete this media?")) return;
+    try {
+      await api.delete(`/media/${mediaId}`);
+      toast.success('Media deleted successfully!');
+      setMediaList((prev) => prev.filter((m) => m.id !== mediaId));
+    } catch (error) {
+      toast.error('Failed to delete media');
+    }
+  };
+  // ----------------------------------------
+
   const handleMediaChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // Toggle ফাংশন Editor's Pick এর জন্য
   const handleToggleFeatured = () => {
     setFormData((prev) => ({ ...prev, isFeatured: !prev.isFeatured }));
   };
@@ -90,15 +139,26 @@ export default function AdminDashboard() {
     };
 
     try {
-      await api.post('/media', formattedData);
-      toast.success('Media added successfully!');
+      if (editId) {
+        // Edit Mode: PUT Request
+        await api.put(`/media/${editId}`, formattedData);
+        toast.success('Media updated successfully!');
+        setEditId(null);
+      } else {
+        // Add Mode: POST Request
+        await api.post('/media', formattedData);
+        toast.success('Media added successfully!');
+      }
+      
+      // Reset form
       setFormData({
         title: '', synopsis: '', genre: '', releaseYear: '', director: '', 
         cast: '', streamingPlatform: '', priceType: 'FREE', streamingLink: '',
-        isFeatured: false, // <-- রিসেট করার সময় false করে দেওয়া হলো
+        isFeatured: false,
       });
+      if (editId) setActiveTab('manage-media'); 
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to add media');
+      toast.error(error.response?.data?.message || 'Failed to process media');
     } finally {
       setIsAdding(false);
     }
@@ -117,10 +177,21 @@ export default function AdminDashboard() {
           Dashboard Stats
         </button>
         <button 
-          onClick={() => setActiveTab('add-media')}
+          onClick={() => {
+            setActiveTab('add-media');
+            setEditId(null);
+            setFormData({title: '', synopsis: '', genre: '', releaseYear: '', director: '', cast: '', streamingPlatform: '', priceType: 'FREE', streamingLink: '', isFeatured: false});
+          }}
           className={`px-4 py-2 font-bold rounded transition-colors ${activeTab === 'add-media' ? 'bg-red-600 text-white shadow-[0_0_15px_rgba(229,9,20,0.3)]' : 'text-gray-400 hover:text-white bg-white/5'}`}
         >
-          Add Media
+          {editId ? 'Edit Media' : 'Add Media'}
+        </button>
+        {/* --- NEW TAB BUTTON --- */}
+        <button 
+          onClick={() => setActiveTab('manage-media')}
+          className={`px-4 py-2 font-bold rounded transition-colors ${activeTab === 'manage-media' ? 'bg-red-600 text-white shadow-[0_0_15px_rgba(229,9,20,0.3)]' : 'text-gray-400 hover:text-white bg-white/5'}`}
+        >
+          Manage Media
         </button>
         <button 
           onClick={() => setActiveTab('manage-reviews')}
@@ -139,7 +210,10 @@ export default function AdminDashboard() {
       {activeTab === 'overview' && (
         <div className="space-y-8 animate-in fade-in duration-300">
           {isLoadingStats ? (
-            <div className="text-center py-10 text-gray-400">Loading system stats...</div>
+            <div className="text-center py-10 text-gray-400 flex flex-col items-center">
+              <div className="w-10 h-10 border-4 border-red-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+              Loading system analytics...
+            </div>
           ) : (
             <>
               {/* Stats Grid */}
@@ -158,34 +232,75 @@ export default function AdminDashboard() {
                 ))}
               </div>
 
-              {/* Trending Media List */}
-              <div>
-                <h3 className="text-xl font-bold mb-4 border-b border-white/10 pb-2">Trending Content</h3>
-                <div className="bg-[#1a1a1a] border border-white/5 rounded-xl overflow-hidden">
-                  {adminData?.mediaStats?.length === 0 ? (
-                    <p className="p-5 text-gray-500 text-center">No media data available yet.</p>
-                  ) : (
-                    adminData?.mediaStats?.map((media: any, idx: number) => (
-                      <div key={media.id} className={`p-4 flex justify-between items-center ${idx !== adminData.mediaStats.length - 1 ? 'border-b border-white/5' : ''}`}>
-                        <div>
-                          <p className="font-bold text-white">{media.title}</p>
-                          <p className="text-xs text-gray-400 mt-1 uppercase">{media.type} • {media.viewCount} Views</p>
+              {/* --- Aggregated Reports Grid (NEW) --- */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-4">
+                
+                {/* 🏆 Top Rated Titles */}
+                <div>
+                  <h3 className="text-xl font-bold mb-4 border-b border-white/10 pb-3 flex items-center gap-2">
+                    <span className="text-yellow-500">🏆</span> Top Rated Titles
+                  </h3>
+                  <div className="bg-[#1a1a1a] border border-white/5 rounded-xl overflow-hidden shadow-lg">
+                    {adminData?.reports?.topRated?.length === 0 ? (
+                      <p className="p-8 text-gray-500 text-center">No ratings available yet.</p>
+                    ) : (
+                      adminData?.reports?.topRated?.map((media: any, idx: number) => (
+                        <div key={media.id} className={`p-4 flex justify-between items-center hover:bg-white/5 transition-colors ${idx !== adminData.reports.topRated.length - 1 ? 'border-b border-white/5' : ''}`}>
+                          <div className="flex items-center gap-4">
+                            <div className="w-8 h-8 rounded bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 flex items-center justify-center font-bold text-sm">
+                              #{idx + 1}
+                            </div>
+                            <div>
+                              <p className="font-bold text-white truncate max-w-[180px] sm:max-w-[250px]">{media.title}</p>
+                              <p className="text-xs text-gray-400 mt-1">{media.reviewCount} Reviews • {media.viewCount} Views</p>
+                            </div>
+                          </div>
+                          <div className="text-right bg-black/50 px-3 py-1.5 rounded-lg border border-white/5">
+                            <p className="text-yellow-500 font-extrabold text-lg">★ {media.avgRating}</p>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-yellow-500 font-bold text-lg">★ {media.avgRating}</p>
-                          <p className="text-xs text-gray-500">{media.reviewCount} Reviews</p>
-                        </div>
-                      </div>
-                    ))
-                  )}
+                      ))
+                    )}
+                  </div>
                 </div>
+
+                {/* 🔥 Most Reviewed Titles */}
+                <div>
+                  <h3 className="text-xl font-bold mb-4 border-b border-white/10 pb-3 flex items-center gap-2">
+                    <span className="text-blue-500">🔥</span> Most Reviewed Titles
+                  </h3>
+                  <div className="bg-[#1a1a1a] border border-white/5 rounded-xl overflow-hidden shadow-lg">
+                    {adminData?.reports?.mostReviewed?.length === 0 ? (
+                      <p className="p-8 text-gray-500 text-center">No reviews available yet.</p>
+                    ) : (
+                      adminData?.reports?.mostReviewed?.map((media: any, idx: number) => (
+                        <div key={media.id} className={`p-4 flex justify-between items-center hover:bg-white/5 transition-colors ${idx !== adminData.reports.mostReviewed.length - 1 ? 'border-b border-white/5' : ''}`}>
+                          <div className="flex items-center gap-4">
+                            <div className="w-8 h-8 rounded bg-blue-500/10 text-blue-500 border border-blue-500/20 flex items-center justify-center font-bold text-sm">
+                              #{idx + 1}
+                            </div>
+                            <div>
+                              <p className="font-bold text-white truncate max-w-[180px] sm:max-w-[250px]">{media.title}</p>
+                              <p className="text-xs text-gray-400 mt-1">★ {media.avgRating} Average Rating</p>
+                            </div>
+                          </div>
+                          <div className="text-right bg-blue-500/10 px-3 py-1.5 rounded-lg border border-blue-500/20">
+                            <p className="text-blue-500 font-extrabold text-lg">{media.reviewCount}</p>
+                            <p className="text-[10px] text-blue-400/70 font-bold uppercase tracking-wider">Reviews</p>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
               </div>
             </>
           )}
         </div>
       )}
 
-      {/* --- TAB 2: ADD MEDIA --- */}
+      {/* --- TAB 2: ADD/EDIT MEDIA --- */}
       {activeTab === 'add-media' && (
         <form onSubmit={handleMediaSubmit} className="space-y-6 animate-in fade-in duration-300">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -252,15 +367,71 @@ export default function AdminDashboard() {
             <textarea name="synopsis" value={formData.synopsis} onChange={handleMediaChange} rows={4} required className="w-full bg-[#222] text-white px-4 py-3 rounded focus:outline-none focus:border-red-600 resize-none"></textarea>
           </div>
 
-          <div className="flex justify-end pt-4">
+          <div className="flex justify-end pt-4 gap-4">
+            {editId && (
+              <button 
+                type="button" 
+                onClick={() => { setActiveTab('manage-media'); setEditId(null); }}
+                className="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded transition-colors"
+              >
+                Cancel Edit
+              </button>
+            )}
             <button type="submit" disabled={isAdding} className="px-8 bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded transition-colors shadow-[0_0_15px_rgba(229,9,20,0.4)]">
-              {isAdding ? 'Publishing...' : 'Publish Media'}
+              {isAdding ? (editId ? 'Updating...' : 'Publishing...') : (editId ? 'Update Media' : 'Publish Media')}
             </button>
           </div>
         </form>
       )}
 
-      {/* --- TAB 3: MANAGE REVIEWS --- */}
+      {/* --- TAB 3: MANAGE MEDIA LIST (NEW) --- */}
+      {activeTab === 'manage-media' && (
+        <div className="space-y-4 animate-in fade-in duration-300">
+          {isLoadingMedia ? (
+            <div className="text-center py-10 text-gray-400">Loading media library...</div>
+          ) : mediaList.length === 0 ? (
+            <div className="text-center py-16 text-gray-500 bg-[#1a1a1a] rounded-xl border border-white/5">
+              <span className="text-4xl block mb-3">🎬</span>
+              <p>No media found in the library.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {mediaList.map((media: any) => (
+                <div key={media.id} className="bg-[#1a1a1a] p-4 rounded-xl border border-white/10 flex items-center justify-between gap-4 hover:border-white/20 transition-all">
+                  <div className="flex-1 overflow-hidden">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h4 className="font-bold text-white truncate text-lg">{media.title}</h4>
+                      {media.isFeatured && <span className="bg-red-600/20 text-red-500 text-[10px] px-2 py-0.5 rounded uppercase font-bold border border-red-500/20">Featured</span>}
+                    </div>
+                    <p className="text-xs text-gray-400 flex gap-2">
+                      <span>{media.releaseYear}</span> • 
+                      <span className={media.priceType === 'PREMIUM' ? 'text-yellow-500' : 'text-green-500'}>{media.priceType}</span> • 
+                      <span>👁️ {media.viewCount}</span>
+                    </p>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => handleEditMediaClick(media)}
+                      className="bg-blue-600/10 hover:bg-blue-600 text-blue-500 hover:text-white border border-blue-600/30 px-3 py-1.5 rounded text-sm font-bold transition-all"
+                    >
+                      Edit
+                    </button>
+                    <button 
+                      onClick={() => handleDeleteMedia(media.id)}
+                      className="bg-red-600/10 hover:bg-red-600 text-red-500 hover:text-white border border-red-600/30 px-3 py-1.5 rounded text-sm font-bold transition-all"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* --- TAB 4: MANAGE REVIEWS --- */}
       {activeTab === 'manage-reviews' && (
         <div className="space-y-4 animate-in fade-in duration-300">
           {isLoadingStats ? (

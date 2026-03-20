@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-import AdvancedSearch from './AdvancedSearch'; // <-- AdvancedSearch ইমপোর্ট করা হলো
+import AdvancedSearch from './AdvancedSearch'; 
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -34,15 +34,18 @@ export default function Navbar() {
   return (
     <nav className="fixed w-full z-50 top-0 bg-black/80 backdrop-blur-md border-b border-white/10 transition-all duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-20 gap-4">
+        {/* Added 'relative' class for proper positioning of the center items */}
+        <div className="flex justify-between items-center h-20 relative">
           
-          {/* Logo Section */}
-          <Link href="/" className="text-red-600 text-3xl font-extrabold tracking-widest uppercase shrink-0">
-            CineTube
-          </Link>
+          {/* 1. Left Section (Logo) */}
+          <div className="flex-1 flex justify-start items-center">
+            <Link href="/" className="text-red-600 text-3xl font-extrabold tracking-widest uppercase shrink-0">
+              CineTube
+            </Link>
+          </div>
 
-          {/* Desktop Navigation Links */}
-          <div className="hidden md:flex space-x-8 shrink-0">
+          {/* 2. Center Section (Navigation Links) - Shifted slightly left with reduced margin */}
+          <div className="hidden md:flex absolute left-[45%] transform -translate-x-1/2 space-x-6">
             <Link href="/" className="text-gray-300 hover:text-white font-medium transition-colors">
               Home
             </Link>
@@ -54,12 +57,12 @@ export default function Navbar() {
             </Link>
           </div>
 
-          {/* Desktop Right Action Buttons (Search + Profile) */}
+          {/* 3. Right Section (Search & Profile) */}
           <div className="hidden md:flex flex-1 items-center justify-end space-x-6 min-w-0">
             
-            {/* Advanced Search Component (Desktop) */}
-            <div className="flex-1 max-w-md flex justify-end">
-               <AdvancedSearch />
+            {/* Advanced Search Component */}
+            <div className="w-full max-w-sm flex justify-end">
+              <AdvancedSearch />
             </div>
 
             {/* Conditional Rendering based on Auth State */}
@@ -67,14 +70,14 @@ export default function Navbar() {
               <div className="relative shrink-0">
                 <button 
                   onClick={() => setIsProfileOpen(!isProfileOpen)}
-                  className="flex items-center justify-center w-10 h-10 rounded-full bg-red-600 text-white font-bold text-lg hover:ring-2 hover:ring-red-400 transition-all"
+                  className="flex items-center justify-center w-10 h-10 rounded-full bg-red-600 text-white font-bold text-lg hover:ring-2 hover:ring-red-400 transition-all shadow-lg"
                 >
                   {user.name.charAt(0).toUpperCase()}
                 </button>
 
                 {/* Profile Dropdown */}
                 {isProfileOpen && (
-                  <div className="absolute right-0 mt-3 w-48 bg-[#111] border border-white/10 rounded-md shadow-lg py-1 backdrop-blur-xl z-50">
+                  <div className="absolute right-0 mt-3 w-48 bg-[#111] border border-white/10 rounded-md shadow-2xl py-1 backdrop-blur-xl z-50">
                     <div className="px-4 py-3 border-b border-white/10">
                       <p className="text-sm text-white font-medium truncate">{user.name}</p>
                       <p className="text-xs text-gray-400 truncate">{user.email}</p>
@@ -116,7 +119,7 @@ export default function Navbar() {
             ) : (
               <Link 
                 href="/login" 
-                className="shrink-0 bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-md font-semibold transition-all shadow-[0_0_10px_rgba(229,9,20,0.5)]"
+                className="shrink-0 bg-red-600 hover:bg-red-700 text-white px-6 py-2.5 rounded-md font-semibold transition-all shadow-[0_0_15px_rgba(229,9,20,0.4)]"
               >
                 Sign In
               </Link>
@@ -161,8 +164,8 @@ export default function Navbar() {
 
       {/* Mobile Search Bar Area (Contains AdvancedSearch) */}
       {isSearchOpen && (
-        <div className="md:hidden bg-[#0a0a0a] border-b border-white/10 backdrop-blur-xl px-4 py-3 w-full absolute top-20 left-0">
-           <AdvancedSearch />
+        <div className="md:hidden bg-[#0a0a0a] border-b border-white/10 backdrop-blur-xl px-4 py-3 w-full absolute top-20 left-0 shadow-xl">
+          <AdvancedSearch />
         </div>
       )}
 
@@ -188,10 +191,10 @@ export default function Navbar() {
                 )}
                 <Link href="/profile" onClick={() => setIsOpen(false)} className="block px-3 py-3 rounded-md text-base font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-colors">My Profile</Link>
                 <Link href="/watchlist" onClick={() => setIsOpen(false)} className="block px-3 py-3 rounded-md text-base font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-colors">My Watchlist</Link>
-                <button onClick={handleLogout} className="block w-full text-left mt-4 bg-red-600/20 text-red-500 px-5 py-3 rounded-md font-semibold transition-all">Sign Out</button>
+                <button onClick={handleLogout} className="block w-full text-left mt-4 bg-red-600/10 text-red-500 hover:bg-red-600/20 px-5 py-3 rounded-md font-semibold transition-all">Sign Out</button>
               </>
             ) : (
-              <Link href="/login" onClick={() => setIsOpen(false)} className="block mt-4 text-center bg-red-600 hover:bg-red-700 text-white px-5 py-3 rounded-md font-semibold transition-all">Sign In</Link>
+              <Link href="/login" onClick={() => setIsOpen(false)} className="block mt-4 text-center bg-red-600 hover:bg-red-700 text-white px-5 py-3 rounded-md font-semibold transition-all shadow-[0_0_10px_rgba(229,9,20,0.4)]">Sign In</Link>
             )}
           </div>
         </div>
