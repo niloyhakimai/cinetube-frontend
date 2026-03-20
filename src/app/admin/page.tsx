@@ -12,6 +12,7 @@ export default function AdminDashboard() {
   const [formData, setFormData] = useState({
     title: '', synopsis: '', genre: '', releaseYear: '', 
     director: '', cast: '', streamingPlatform: '', priceType: 'FREE', streamingLink: '',
+    isFeatured: false, // <-- নতুন State যোগ করা হলো
   });
 
   // States for Dashboard Overview & Reviews
@@ -28,7 +29,6 @@ export default function AdminDashboard() {
   const fetchAdminStats = async () => {
     setIsLoadingStats(true);
     try {
-      // Fetching all admin data from the new endpoint
       const response = await api.get('/admin/dashboard');
       setAdminData(response.data);
     } catch (error) {
@@ -43,7 +43,6 @@ export default function AdminDashboard() {
     try {
       await api.put(`/reviews/${reviewId}/approve`);
       toast.success('Review approved successfully!');
-      // Optimistic UI Update
       setAdminData((prev: any) => ({
         ...prev,
         stats: { ...prev.stats, pendingReviewCount: prev.stats.pendingReviewCount - 1 },
@@ -59,7 +58,6 @@ export default function AdminDashboard() {
     try {
       await api.delete(`/reviews/${reviewId}`);
       toast.success('Review deleted successfully!');
-      // Optimistic UI Update
       setAdminData((prev: any) => ({
         ...prev,
         stats: { ...prev.stats, pendingReviewCount: prev.stats.pendingReviewCount - 1 },
@@ -72,6 +70,11 @@ export default function AdminDashboard() {
 
   const handleMediaChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  // Toggle ফাংশন Editor's Pick এর জন্য
+  const handleToggleFeatured = () => {
+    setFormData((prev) => ({ ...prev, isFeatured: !prev.isFeatured }));
   };
 
   const handleMediaSubmit = async (e: React.FormEvent) => {
@@ -92,6 +95,7 @@ export default function AdminDashboard() {
       setFormData({
         title: '', synopsis: '', genre: '', releaseYear: '', director: '', 
         cast: '', streamingPlatform: '', priceType: 'FREE', streamingLink: '',
+        isFeatured: false, // <-- রিসেট করার সময় false করে দেওয়া হলো
       });
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to add media');
@@ -224,6 +228,22 @@ export default function AdminDashboard() {
                   <option value="PREMIUM">Premium</option>
                 </select>
               </div>
+              
+              {/* --- Editor's Pick Toggle --- */}
+              <div className="flex items-center justify-between bg-[#222] px-4 py-3 rounded border border-white/5 mt-2">
+                <div>
+                  <p className="text-white font-bold text-sm">Editor's Pick (Featured)</p>
+                  <p className="text-gray-400 text-xs mt-0.5">Show this in Hero Section & Editor's Picks</p>
+                </div>
+                <button 
+                  type="button"
+                  onClick={handleToggleFeatured}
+                  className={`w-12 h-6 rounded-full transition-colors relative focus:outline-none ${formData.isFeatured ? 'bg-red-600' : 'bg-gray-600'}`}
+                >
+                  <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-transform duration-200 ${formData.isFeatured ? 'translate-x-6' : 'translate-x-0.5'}`}></div>
+                </button>
+              </div>
+
             </div>
           </div>
 

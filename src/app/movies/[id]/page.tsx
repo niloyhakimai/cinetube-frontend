@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import toast, { Toaster } from 'react-hot-toast';
 import { api } from '@/lib/axios';
-import Link from 'next/link';
+import MovieSlider from '@/components/home/MovieSlider'; // <-- এটা নতুন ইমপোর্ট করা হলো
 
 interface Media {
   id: string;
@@ -22,6 +22,7 @@ interface Review {
   id: string;
   rating: number;
   content: string;
+  isSpoiler?: boolean;
   user: { name: string };
   createdAt: string;
 }
@@ -37,16 +38,22 @@ interface User {
 
 export default function MovieDetails() {
   const params = useParams();
+  const router = useRouter();
   const { id } = params;
 
   const [movie, setMovie] = useState<Media | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [similarMovies, setSimilarMovies] = useState<any[]>([]); 
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<User | null>(null);
+
+  // Video Player State
+  const [isPlaying, setIsPlaying] = useState(false);
 
   // Review Form State
   const [rating, setRating] = useState(10);
   const [reviewContent, setReviewContent] = useState('');
+  const [isSpoiler, setIsSpoiler] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -56,14 +63,28 @@ export default function MovieDetails() {
       setUser(JSON.parse(storedUser));
     }
 
-    const fetchMovieAndReviews = async () => {
+    const fetchMovieDetails = async () => {
       try {
-        const mediaRes = await api.get('/media');
-        const foundMovie = mediaRes.data.media.find((m: Media) => m.id === id);
-        setMovie(foundMovie);
+        const res = await api.get(`/media/${id}`);
+        setMovie(res.data.media);
+      
+        if (res.data.media.reviews) {
+          setReviews(res.data.media.reviews);
+        }
 
-        const reviewRes = await api.get(`/reviews/${id}`);
-        setReviews(reviewRes.data.reviews);
+        // --- Similar Movies ---
+        if (res.data.similarMedia) {
+          const formattedSimilar = res.data.similarMedia.map((item: any) => ({
+            id: item.id,
+            title: item.title,
+            image: item.posterUrl || "https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=500&auto=format&fit=crop",
+            rating: item.averageRating || 0,
+            year: item.releaseYear,
+            genre: item.genre?.[0] || 'Unknown'
+          }));
+          setSimilarMovies(formattedSimilar);
+        }
+
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
@@ -71,18 +92,28 @@ export default function MovieDetails() {
       }
     };
 
-    if (id) fetchMovieAndReviews();
+    if (id) fetchMovieDetails();
   }, [id]);
 
   const handleWatchlist = async () => {
     try {
-      const response = await api.post('/watchlist/toggle', {
-        mediaId: id,
-      });
-      toast.success(response.data.message);
+      const response = await api.post('/watchlist/toggle', { mediaId: id });
+      toast.success(response.data.message || 'Updated Watchlist!');
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Please log in to add to watchlist');
     }
+  };
+
+  const handlePremiumClick = () => {
+    toast('Please become a premium member to access this content! 👑', {
+      icon: '🔒',
+      style: { borderRadius: '10px', background: '#333', color: '#fff' },
+      duration: 3000,
+    });
+
+    setTimeout(() => {
+      router.push('/#pricing');
+    }, 2000);
   };
 
   const handleReviewSubmit = async (e: React.FormEvent) => {
@@ -93,17 +124,18 @@ export default function MovieDetails() {
     }
 
     setIsSubmitting(true);
-
     try {
       await api.post('/reviews', {
         mediaId: id,
         rating: Number(rating),
         content: reviewContent,
+        isSpoiler: isSpoiler 
       });
       
       toast.success('Review submitted! Waiting for admin approval.');
       setReviewContent('');
       setRating(10);
+      setIsSpoiler(false);
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to submit review.');
     } finally {
@@ -120,11 +152,12 @@ export default function MovieDetails() {
   }
 
   if (!movie) {
-    return <div className="min-h-screen bg-[#050505] text-white flex justify-center items-center text-2xl">Movie not found!</div>;
+    return <div className="min-h-screen bg-[#050505] text-white flex justify-center items-center text-2xl font-bold">🎬 Movie not found!</div>;
   }
 
   // Extract YouTube ID for embed
   const getYouTubeId = (url: string) => {
+    if(!url) return null;
     const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
     const match = url.match(regExp);
     return (match && match[2].length === 11) ? match[2] : null;
@@ -132,38 +165,61 @@ export default function MovieDetails() {
   const trailerId = getYouTubeId(movie.streamingLink);
 
   // Lógica principal: Is the user allowed to play this movie?
-  // Free movies can be played by anyone. Premium movies require an active subscription.
-  const canPlayMovie = movie.priceType === 'FREE' || (user && user.subscriptionStatus === 'ACTIVE');
+  const canPlayMovie = movie.priceType === 'FREE' || (user && user.subscriptionStatus === 'ACTIVE') || user?.role === 'ADMIN';
 
   return (
     <div className="min-h-screen bg-[#050505] text-white pb-20">
       <Toaster position="top-center" />
       
-      {/* Hero Section with Trailer */}
-      <div className="relative w-full h-[60vh] bg-black border-b border-white/10">
+      {/* --- HERO / PLAYER SECTION --- */}
+      <div className="relative w-full h-[50vh] md:h-[70vh] bg-black border-b border-white/10 group">
         {trailerId ? (
-          <iframe 
-            className="w-full h-full object-cover opacity-60 pointer-events-none" // pointer-events-none added to prevent playing from hero
-            src={`https://www.youtube.com/embed/${trailerId}?autoplay=1&mute=1&loop=1&playlist=${trailerId}&controls=0`}
-            title="Movie Trailer"
-            frameBorder="0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-          ></iframe>
+          isPlaying ? (
+            // Active Player Mode (With Controls)
+            <iframe 
+              className="w-full h-full object-cover animate-in fade-in duration-500"
+              src={`https://www.youtube.com/embed/${trailerId}?autoplay=1&controls=1&rel=0`}
+              title="Movie Player"
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            ></iframe>
+          ) : (
+            // Background Trailer Mode (Muted, No Controls)
+            <>
+              <iframe 
+                className="w-full h-full object-cover opacity-50 pointer-events-none"
+                src={`https://www.youtube.com/embed/${trailerId}?autoplay=1&mute=1&loop=1&playlist=${trailerId}&controls=0`}
+                title="Movie Trailer"
+                frameBorder="0"
+                allow="autoplay"
+              ></iframe>
+              <div className="absolute inset-0 flex items-center justify-center">
+                {canPlayMovie && (
+                  <button 
+                    onClick={() => setIsPlaying(true)}
+                    className="bg-red-600/80 hover:bg-red-600 text-white rounded-full p-6 backdrop-blur-md shadow-[0_0_30px_rgba(229,9,20,0.5)] transform hover:scale-110 transition-all opacity-0 group-hover:opacity-100"
+                  >
+                    <svg className="w-10 h-10 ml-1" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" /></svg>
+                  </button>
+                )}
+              </div>
+            </>
+          )
         ) : (
-          <div className="w-full h-full bg-[#111] flex items-center justify-center text-gray-500">No Trailer Available</div>
+          <div className="w-full h-full bg-[#111] flex items-center justify-center text-gray-500 font-bold">No Media Source Available</div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/40 to-transparent"></div>
+        {!isPlaying && <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-transparent pointer-events-none"></div>}
       </div>
 
-      {/* Movie Details Container */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-40 relative z-10">
+      {/* --- MOVIE DETAILS CONTAINER --- */}
+      <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 transition-all duration-500 ${isPlaying ? 'mt-8' : '-mt-32'}`}>
         <div className="bg-[#111]/90 backdrop-blur-xl p-8 md:p-10 rounded-2xl border border-white/10 shadow-2xl">
           <div className="flex flex-col md:flex-row justify-between items-start gap-8">
             
             <div className="flex-1">
-              <h1 className="text-4xl md:text-6xl font-extrabold mb-3 text-white tracking-tight">{movie.title}</h1>
-              <div className="flex flex-wrap items-center gap-3 text-sm text-gray-400 font-medium mb-8">
+              <h1 className="text-4xl md:text-5xl font-extrabold mb-3 text-white tracking-tight">{movie.title}</h1>
+              <div className="flex flex-wrap items-center gap-3 text-sm text-gray-400 font-medium mb-6">
                 <span className="bg-white/10 px-3 py-1 rounded-full">{movie.releaseYear}</span>
                 <span className={`px-3 py-1 border rounded-full font-bold tracking-wider text-xs uppercase ${movie.priceType === 'PREMIUM' ? 'border-yellow-500/50 text-yellow-500 bg-yellow-500/10' : 'border-green-500/50 text-green-500 bg-green-500/10'}`}>
                   {movie.priceType}
@@ -189,29 +245,30 @@ export default function MovieDetails() {
               </div>
             </div>
 
-            {/* Action Buttons Panel */}
+            {/* --- ACTION BUTTONS PANEL --- */}
             <div className="flex flex-col gap-4 w-full md:w-auto md:min-w-[250px] shrink-0">
               
               {!canPlayMovie ? (
-                // Show Buy Premium Button if user is not subbed and movie is premium
-                <Link 
-                  href="/#pricing" // Redirecting to home pricing section is better than hardcoding /subscribe/monthly
+                // Show Buy Premium Button
+                <button 
+                  onClick={handlePremiumClick}
                   className="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-400 hover:to-yellow-500 text-black px-6 py-4 rounded-xl font-bold transition-all shadow-[0_0_20px_rgba(234,179,8,0.3)] hover:shadow-[0_0_30px_rgba(234,179,8,0.5)] flex items-center justify-center gap-2 transform hover:-translate-y-1"
                 >
                   <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zM12 2a1 1 0 01.967.744L14.146 7.2 17.5 9.134a1 1 0 010 1.732l-3.354 1.935-1.18 4.455a1 1 0 01-1.933 0L9.854 12.8 6.5 10.866a1 1 0 010-1.732l3.354-1.935 1.18-4.455A1 1 0 0112 2z" clipRule="evenodd" /></svg>
                   Unlock Premium
-                </Link>
+                </button>
               ) : (
-                // Show Play Button if free or user is subbed
-                <a 
-                  href={movie.streamingLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                // Show Play Button
+                <button 
+                  onClick={() => {
+                    setIsPlaying(true);
+                    window.scrollTo({ top: 0, behavior: 'smooth' }); // Scroll top top to watch
+                  }}
                   className="w-full bg-red-600 hover:bg-red-700 text-white px-6 py-4 rounded-xl font-bold transition-all shadow-[0_0_20px_rgba(229,9,20,0.3)] hover:shadow-[0_0_30px_rgba(229,9,20,0.5)] flex items-center justify-center gap-2 transform hover:-translate-y-1"
                 >
                   <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" /></svg>
-                  Play Full Movie
-                </a>
+                  {isPlaying ? 'Now Playing' : 'Play Full Movie'}
+                </button>
               )}
 
               <button 
@@ -226,9 +283,10 @@ export default function MovieDetails() {
           </div>
         </div>
 
-        {/* Reviews Section Area (Kept Mostly Same, Just styling tweaks) */}
+        {/* --- REVIEWS SECTION --- */}
         <div className="mt-16 grid grid-cols-1 lg:grid-cols-3 gap-10">
           
+          {/* Write Review Form */}
           <div className="lg:col-span-1">
             <div className="bg-[#111]/80 backdrop-blur-md p-8 rounded-2xl border border-white/10 sticky top-24">
               <h3 className="text-2xl font-bold mb-6 flex items-center gap-3">
@@ -253,6 +311,17 @@ export default function MovieDetails() {
                     required
                   ></textarea>
                 </div>
+                
+                {/* Spoiler Tag Checkbox */}
+                <div className="flex items-center gap-2">
+                  <input 
+                    type="checkbox" id="spoiler" 
+                    checked={isSpoiler} onChange={(e) => setIsSpoiler(e.target.checked)}
+                    className="w-4 h-4 text-red-600 bg-gray-700 border-gray-600 rounded focus:ring-red-600"
+                  />
+                  <label htmlFor="spoiler" className="text-sm font-medium text-gray-400 cursor-pointer">This review contains spoilers</label>
+                </div>
+
                 <button 
                   type="submit" disabled={isSubmitting}
                   className="w-full bg-white hover:bg-gray-200 text-black font-extrabold py-3.5 rounded-xl transition-all shadow-lg hover:shadow-white/20"
@@ -263,6 +332,7 @@ export default function MovieDetails() {
             </div>
           </div>
 
+          {/* Audience Reviews List */}
           <div className="lg:col-span-2 space-y-6">
             <div className="flex items-center justify-between mb-8 border-b border-white/10 pb-4">
               <h3 className="text-3xl font-bold">Audience Reviews</h3>
@@ -280,7 +350,13 @@ export default function MovieDetails() {
             ) : (
               <div className="space-y-5">
                 {reviews.map((review) => (
-                  <div key={review.id} className="bg-[#111]/80 hover:bg-[#151515] p-6 md:p-8 rounded-2xl border border-white/5 transition-colors">
+                  <div key={review.id} className="bg-[#111]/80 hover:bg-[#151515] p-6 md:p-8 rounded-2xl border border-white/5 transition-colors relative overflow-hidden">
+                    {/* Spoiler Badge */}
+                    {review.isSpoiler && (
+                      <div className="absolute top-0 right-0 bg-red-600/20 text-red-500 text-xs font-bold px-3 py-1 rounded-bl-lg border-b border-l border-red-500/20">
+                        SPOILER
+                      </div>
+                    )}
                     <div className="flex justify-between items-start mb-4">
                       <div className="flex items-center gap-4">
                         <div className="w-12 h-12 rounded-full bg-gradient-to-br from-red-600 to-red-900 flex items-center justify-center font-bold text-xl shadow-lg border border-red-500/30">
@@ -291,18 +367,29 @@ export default function MovieDetails() {
                           <p className="text-sm text-gray-500">{new Date(review.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
                         </div>
                       </div>
-                      <div className="bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 shadow-[0_0_10px_rgba(234,179,8,0.1)]">
+                      <div className="bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 shadow-[0_0_10px_rgba(234,179,8,0.1)] mt-2 md:mt-0">
                         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
                         {review.rating}/10
                       </div>
                     </div>
-                    <p className="text-gray-300 text-lg leading-relaxed">{review.content}</p>
+                    {/* Spoiler Protection */}
+                    <p className={`text-lg leading-relaxed ${review.isSpoiler ? 'text-transparent bg-gray-800 rounded px-2 select-all hover:text-gray-300 hover:bg-transparent transition-all cursor-help' : 'text-gray-300'}`}>
+                      {review.content}
+                    </p>
                   </div>
                 ))}
               </div>
             )}
           </div>
         </div>
+
+        {/* --- MORE LIKE THIS SECTION --- */}
+        {similarMovies.length > 0 && (
+          <div className="mt-20 border-t border-white/10 pt-10 pb-10">
+            <MovieSlider title="More Like This" movies={similarMovies} />
+          </div>
+        )}
+
       </div>
     </div>
   );

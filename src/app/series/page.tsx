@@ -1,132 +1,160 @@
 "use client";
 
-import { useState, useEffect, Suspense } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
+import { useEffect, useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import MovieCard from '@/components/cards/MovieCard';
 import { api } from '@/lib/axios';
 
-interface Media {
+interface MediaData {
   id: string;
   title: string;
-  type: string;
   releaseYear: number;
-  posterUrl: string;
   genre: string[];
-  viewCount?: number;
+  posterUrl?: string;
+  averageRating?: number | string;
 }
 
-function SearchContent() {
-  const searchParams = useSearchParams();
+function SeriesContent() {
   const router = useRouter();
-  
-  const [results, setResults] = useState<Media[]>([]);
+  const searchParams = useSearchParams();
+
+  const [series, setSeries] = useState<MediaData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // URL parameters for Pagination & Filtering
+  const searchQuery = searchParams.get('q') || '';
+  const selectedGenre = searchParams.get('genre') || 'All';
+  const sort = searchParams.get('sort') || 'latest';
+  const page = parseInt(searchParams.get('page') || '1');
   const [totalPages, setTotalPages] = useState(1);
   const [totalResults, setTotalResults] = useState(0);
 
-  const q = searchParams.get('q') || '';
-  const genre = searchParams.get('genre') || '';
-  const platform = searchParams.get('platform') || '';
-  const year = searchParams.get('year') || '';
-  const rating = searchParams.get('rating') || '';
-  const sort = searchParams.get('sort') || 'latest';
-  const page = parseInt(searchParams.get('page') || '1');
-
   useEffect(() => {
-    const fetchResults = async () => {
+    const fetchSeries = async () => {
       setIsLoading(true);
       try {
+        // Calling our powerful search API
         const response = await api.get('/media/search', {
-          params: { q, genre, platform, year, rating, sort, page, limit: 12 }
+          params: { 
+            q: searchQuery, 
+            genre: selectedGenre === 'All' ? '' : selectedGenre, 
+            sort, 
+            page, 
+            limit: 15 // Number of items per page
+          }
         });
         
-        setResults(response.data.data);
-        setTotalPages(response.data.pagination.totalPages);
+        setSeries(response.data.data);
+        setTotalPages(response.data.pagination.pages);
         setTotalResults(response.data.pagination.total);
       } catch (error) {
-        console.error("Error fetching search results:", error);
+        console.error("Error fetching series:", error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchResults();
-  }, [q, genre, platform, year, rating, sort, page]);
+    fetchSeries();
+  }, [searchQuery, selectedGenre, sort, page]);
+
+  // Update URL params
+  const updateFilter = (key: string, value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value && value !== 'All') {
+      params.set(key, value);
+    } else {
+      params.delete(key);
+    }
+    params.set('page', '1'); // Reset to page 1 on filter change
+    router.push(`/series?${params.toString()}`);
+  };
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {
       const params = new URLSearchParams(searchParams.toString());
       params.set('page', newPage.toString());
-      router.push(`/search?${params.toString()}`);
+      router.push(`/series?${params.toString()}`);
     }
   };
 
   return (
-    <>
-      {/* Header Section */}
-      <div className="mb-10">
-        <h1 className="text-3xl md:text-4xl font-extrabold mb-2">
-          Search Results
-        </h1>
-        <p className="text-gray-400 text-sm md:text-base">
-          {isLoading ? (
-            <span className="animate-pulse bg-gray-700/50 h-5 w-48 rounded block mt-1"></span>
-          ) : (
-            `Found ${totalResults} matching titles ${q ? `for "${q}"` : ''}`
-          )}
-        </p>
-      </div>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      
+      {/* Header & Filters */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
+        <div>
+          <h1 className="text-3xl md:text-4xl font-extrabold text-white border-l-4 border-red-600 pl-4 mb-2">
+            Explore TV Series
+          </h1>
+          <p className="text-gray-400 pl-4 text-sm hidden sm:block">Found {totalResults} titles</p>
+        </div>
+        
+        <div className="flex flex-wrap gap-4 w-full md:w-auto">
+          {/* Search Bar */}
+          <input 
+            type="text" 
+            placeholder="Search series by title..." 
+            value={searchQuery}
+            onChange={(e) => updateFilter('q', e.target.value)}
+            className="bg-[#111] border border-white/10 text-white px-4 py-2 rounded-md focus:outline-none focus:border-red-600 w-full md:w-64 transition-all"
+          />
+          
+          {/* Genre Filter */}
+          <select 
+            value={selectedGenre}
+            onChange={(e) => updateFilter('genre', e.target.value)}
+            className="flex-1 md:flex-none bg-[#111] border border-white/10 text-white px-4 py-2 rounded-md focus:outline-none focus:border-red-600 cursor-pointer"
+          >
+            <option value="All">All Genres</option>
+            <option value="Action">Action</option>
+            <option value="Sci-Fi">Sci-Fi</option>
+            <option value="Drama">Drama</option>
+            <option value="Comedy">Comedy</option>
+            <option value="Horror">Horror</option>
+            <option value="Thriller">Thriller</option>
+          </select>
 
-      {/* Loading State */}
+          {/* Sort Options */}
+          <select 
+            value={sort}
+            onChange={(e) => updateFilter('sort', e.target.value)}
+            className="flex-1 md:flex-none bg-[#111] border border-white/10 text-white px-4 py-2 rounded-md focus:outline-none focus:border-red-600 cursor-pointer"
+          >
+            <option value="latest">Recent (Newest)</option>
+            <option value="highest-rated">Top Rated</option>
+            <option value="most-reviewed">Most Reviewed</option>
+            <option value="popularity">Most Popular</option>
+          </select>
+        </div>
+      </div>
+      
+      {/* Loading State or Series Grid */}
       {isLoading ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
-          {[...Array(12)].map((_, i) => (
-            <div key={i} className="animate-pulse bg-[#111] rounded-xl aspect-[2/3] border border-white/5 shadow-lg"></div>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+          {[...Array(10)].map((_, i) => (
+            <div key={i} className="animate-pulse bg-[#111] rounded-xl aspect-[2/3] border border-white/5"></div>
           ))}
         </div>
-      ) : results.length === 0 ? (
-        /* Empty State */
-        <div className="flex flex-col items-center justify-center py-20 bg-[#111]/50 backdrop-blur-md rounded-2xl border border-white/10">
-          <svg className="w-20 h-20 text-gray-600 mb-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      ) : series.length === 0 ? (
+        <div className="text-center text-gray-500 mt-20 p-10 bg-[#111] rounded-xl border border-white/10">
+          <svg className="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
-          <h2 className="text-2xl font-bold text-white mb-2">No results found</h2>
-          <p className="text-gray-400 text-center max-w-md">
-            We couldn't find any movies or shows matching your current filters. Try adjusting your search or clearing some filters.
-          </p>
-          <Link href="/" className="mt-8 px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-colors shadow-[0_0_15px_rgba(229,9,20,0.4)]">
-            Back to Home
-          </Link>
+          <p className="text-xl font-semibold">No TV series found matching your criteria.</p>
         </div>
       ) : (
-        /* Results Grid */
         <>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
-            {results.map((media) => (
-              <Link key={media.id} href={`/movies/${media.id}`} className="group relative block rounded-xl overflow-hidden bg-[#111] border border-white/5 transition-all duration-300 hover:scale-105 hover:border-red-500/50 hover:shadow-[0_0_30px_rgba(229,9,20,0.3)]">
-                <div className="aspect-[2/3] w-full bg-[#1a1a1a] relative">
-                  {media.posterUrl ? (
-                    <img src={media.posterUrl} alt={media.title} className="object-cover w-full h-full" />
-                  ) : (
-                    <div className="absolute inset-0 flex items-center justify-center text-gray-700 font-bold text-2xl">
-                      NO IMAGE
-                    </div>
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
-                    <span className="text-xs font-bold text-red-500 uppercase tracking-wider mb-1">
-                      {media.genre[0] || media.type}
-                    </span>
-                    <span className="text-sm font-semibold text-white">
-                      {media.releaseYear}
-                    </span>
-                  </div>
-                </div>
-                <div className="p-3">
-                  <h3 className="text-white font-medium text-sm truncate" title={media.title}>
-                    {media.title}
-                  </h3>
-                </div>
-              </Link>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+            {series.map((item) => (
+              <MovieCard 
+                key={item.id}
+                id={item.id}
+                title={item.title}
+                image={item.posterUrl || "https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=500&auto=format&fit=crop"}
+                rating={Number(item.averageRating) || 0} // Number fix applied here
+                year={item.releaseYear}
+                genre={item.genre[0] || "Unknown"}
+              />
             ))}
           </div>
 
@@ -134,21 +162,17 @@ function SearchContent() {
           {totalPages > 1 && (
             <div className="mt-16 flex justify-center items-center gap-4">
               <button 
-                onClick={() => handlePageChange(page - 1)}
-                disabled={page === 1}
-                className="px-4 py-2 bg-[#111] border border-white/10 rounded-lg text-sm font-medium hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                onClick={() => handlePageChange(page - 1)} disabled={page === 1}
+                className="px-5 py-2.5 bg-[#111] border border-white/10 hover:border-red-500/50 rounded-lg text-sm font-bold hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
                 &larr; Previous
               </button>
-              
               <span className="text-gray-400 font-medium text-sm">
-                Page <span className="text-white">{page}</span> of <span className="text-white">{totalPages}</span>
+                Page <span className="text-white bg-white/10 px-2 py-1 rounded">{page}</span> of {totalPages}
               </span>
-              
               <button 
-                onClick={() => handlePageChange(page + 1)}
-                disabled={page === totalPages}
-                className="px-4 py-2 bg-[#111] border border-white/10 rounded-lg text-sm font-medium hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                onClick={() => handlePageChange(page + 1)} disabled={page === totalPages}
+                className="px-5 py-2.5 bg-[#111] border border-white/10 hover:border-red-500/50 rounded-lg text-sm font-bold hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
                 Next &rarr;
               </button>
@@ -156,24 +180,17 @@ function SearchContent() {
           )}
         </>
       )}
-    </>
+      
+    </div>
   );
 }
 
-// Main Page Component wrapped in Suspense
-export default function SearchResultsPage() {
+export default function AllSeries() {
   return (
-    <div className="min-h-screen bg-[#050505] text-white pt-28 pb-20 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
-        <Suspense fallback={
-          <div className="flex flex-col items-center justify-center py-20">
-             <div className="w-12 h-12 border-4 border-red-600 border-t-transparent rounded-full animate-spin"></div>
-             <p className="mt-4 text-gray-400">Loading Search Results...</p>
-          </div>
-        }>
-          <SearchContent />
-        </Suspense>
-      </div>
+    <div className="min-h-screen bg-[#050505] pt-20">
+      <Suspense fallback={<div className="text-center py-20 text-red-500 flex justify-center"><div className="w-12 h-12 border-4 border-red-600 border-t-transparent rounded-full animate-spin"></div></div>}>
+        <SeriesContent />
+      </Suspense>
     </div>
   );
 }
