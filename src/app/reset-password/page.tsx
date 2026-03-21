@@ -3,11 +3,11 @@
 import axios from 'axios';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { Suspense, useMemo, useState } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import { api } from '@/lib/axios';
 
-export default function ResetPasswordPage() {
+function ResetPasswordContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = useMemo(() => searchParams.get('token') || '', [searchParams]);
@@ -117,5 +117,19 @@ export default function ResetPasswordPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#050505] flex items-center justify-center">
+          <div className="w-12 h-12 border-4 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      }
+    >
+      <ResetPasswordContent />
+    </Suspense>
   );
 }

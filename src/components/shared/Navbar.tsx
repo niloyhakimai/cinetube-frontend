@@ -1,11 +1,15 @@
 "use client";
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import AdvancedSearch from './AdvancedSearch'; 
 import { useAuth } from '@/context/AuthContext';
+
+function SearchFallback() {
+  return <div className="h-11 w-full max-w-sm rounded-full bg-white/10 animate-pulse"></div>;
+}
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -53,7 +57,9 @@ export default function Navbar() {
             
             {/* Advanced Search Component */}
             <div className="w-full max-w-sm flex justify-end">
-              <AdvancedSearch />
+              <Suspense fallback={<SearchFallback />}>
+                <AdvancedSearch />
+              </Suspense>
             </div>
 
             {/* Conditional Rendering based on Auth State */}
@@ -158,7 +164,9 @@ export default function Navbar() {
       {/* Mobile Search Bar Area (Contains AdvancedSearch) */}
       {isSearchOpen && (
         <div className="md:hidden bg-[#0a0a0a] border-b border-white/10 backdrop-blur-xl px-4 py-3 w-full absolute top-20 left-0 shadow-xl">
-          <AdvancedSearch />
+          <Suspense fallback={<SearchFallback />}>
+            <AdvancedSearch />
+          </Suspense>
         </div>
       )}
 
