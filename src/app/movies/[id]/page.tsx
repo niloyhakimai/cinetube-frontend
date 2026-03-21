@@ -5,6 +5,8 @@ import { useParams, useRouter } from 'next/navigation';
 import toast, { Toaster } from 'react-hot-toast';
 import { api } from '@/lib/axios';
 import MovieSlider from '@/components/home/MovieSlider';
+import { useAuth } from '@/context/AuthContext';
+import { FALLBACK_BACKDROP, FALLBACK_POSTER, parseRemoteMediaId } from '@/utils/mediaRoute';
 
 interface Media {
   id: string;
@@ -16,6 +18,13 @@ interface Media {
   cast: string[];
   streamingLink: string;
   priceType: string;
+  mediaType?: 'MOVIE' | 'TV';
+  posterUrl?: string | null;
+  backdropUrl?: string | null;
+  averageRating?: number;
+  voteCount?: number;
+  hasAccess?: boolean;
+  previewLink?: string | null;
 }
 
 interface Comment {
@@ -42,70 +51,110 @@ interface Review {
   comments: Comment[];
 }
 
-interface User {
-  id: string; 
-  name: string; 
-  email: string; 
-  role: string; 
-  subscriptionStatus?: string; 
-  subscriptionPlan?: string;
+interface SimilarMedia {
+  id: string;
+  href?: string;
+  title: string;
+  image: string;
+  rating: number;
+  year: number;
+  genre: string;
+}
+
+function getYouTubeId(url: string) {
+  if (!url) {
+    return null;
+  }
+
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+  const match = url.match(regExp);
+  return match && match[2].length === 11 ? match[2] : null;
 }
 
 export default function MovieDetails() {
   const params = useParams();
   const router = useRouter();
-  const { id } = params;
+  const routeId = Array.isArray(params.id) ? params.id[0] : String(params.id || '');
+  const remoteMediaId = parseRemoteMediaId(routeId);
+  const detailEndpoint = remoteMediaId
+    ? `/tmdb/media/${remoteMediaId.mediaType}/${remoteMediaId.tmdbId}`
+    : `/media/${routeId}`;
 
   const [movie, setMovie] = useState<Media | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
-  const [similarMovies, setSimilarMovies] = useState<any[]>([]); 
+  const [similarMovies, setSimilarMovies] = useState<SimilarMedia[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [user, setUser] = useState<User | null>(null);
-
+  const [hasPurchased, setHasPurchased] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const { user, token, isHydrated, updateUser, logout } = useAuth();
 
-  // Review Form State
   const [rating, setRating] = useState(10);
   const [reviewContent, setReviewContent] = useState('');
   const [isSpoiler, setIsSpoiler] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  // Tags State
+
   const AVAILABLE_TAGS = ['Classic', 'Underrated', 'Masterpiece', 'Overrated', 'Action-Packed', 'Tearjerker', 'Mind-Bending', 'Family-Friendly'];
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
-  // Comment Reply State
   const [activeReplyId, setActiveReplyId] = useState<string | null>(null);
   const [replyContent, setReplyContent] = useState('');
   const [isSubmittingReply, setIsSubmittingReply] = useState(false);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-
     const fetchMovieDetails = async () => {
+      setIsLoading(true);
+      setIsPlaying(false);
+      setHasPurchased(false);
+
       try {
-        const res = await api.get(`/media/${id}`);
-        setMovie(res.data.media);
-      
-        if (res.data.media.reviews) {
-          setReviews(res.data.media.reviews);
+        if (token) {
+          try {
+            const currentUserResponse = await api.get('/auth/me');
+            if (currentUserResponse.data?.user) {
+              updateUser(currentUserResponse.data.user);
+            }
+          } catch (authError: any) {
+            if (authError.response?.status === 401) {
+              logout();
+            }
+          }
         }
 
-        if (res.data.similarMedia) {
-          const formattedSimilar = res.data.similarMedia.map((item: any) => ({
-            id: item.id,
-            title: item.title,
-            image: item.posterUrl || "https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=500&auto=format&fit=crop",
-            rating: item.averageRating || 0,
-            year: item.releaseYear,
-            genre: item.genre?.[0] || 'Unknown'
-          }));
-          setSimilarMovies(formattedSimilar);
-        }
+        const response = await api.get(detailEndpoint);
+        const loadedMedia = response.data.media as Media;
 
+        setMovie(loadedMedia);
+        setReviews((response.data.media?.reviews || []) as Review[]);
+
+        const formattedSimilar = (response.data.similarMedia || []).map((item: any) => ({
+          id: item.id,
+          href: item.href,
+          title: item.title,
+          image: item.posterUrl || FALLBACK_POSTER,
+          rating: item.averageRating || 0,
+          year: item.releaseYear,
+          genre: item.genre?.[0] || 'Unknown',
+        }));
+        setSimilarMovies(formattedSimilar);
+
+        if (token && loadedMedia.id) {
+          try {
+            const historyResponse = await api.get('/payments/history');
+            const purchases = historyResponse.data.purchases || [];
+            const boughtOrRented = purchases.some((purchase: any) =>
+              purchase.media.id === loadedMedia.id &&
+              (purchase.purchaseType === 'BUY' ||
+              (purchase.purchaseType === 'RENT' && new Date(purchase.expiresAt) > new Date())),
+            );
+
+            setHasPurchased(boughtOrRented);
+          } catch (historyError) {
+            console.error("Purchase history fetch error:", historyError);
+            setHasPurchased(false);
+          }
+        } else {
+          setHasPurchased(false);
+        }
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
@@ -113,52 +162,51 @@ export default function MovieDetails() {
       }
     };
 
-    if (id) fetchMovieDetails();
-  }, [id]);
+    if (routeId && isHydrated) {
+      fetchMovieDetails();
+    }
+  }, [detailEndpoint, isHydrated, logout, routeId, token, updateUser]);
 
   const handleWatchlist = async () => {
+    if (!movie?.id) {
+      toast.error('Media is still loading. Please try again.');
+      return;
+    }
+
     try {
-      const response = await api.post('/watchlist/toggle', { mediaId: id });
+      const response = await api.post('/watchlist/toggle', { mediaId: movie.id });
       toast.success(response.data.message || 'Updated Watchlist!');
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Please log in to add to watchlist');
     }
   };
 
-  const handlePremiumClick = () => {
-    toast('Please become a premium member to access this content! 👑', {
-      icon: '🔒',
-      style: { borderRadius: '10px', background: '#333', color: '#fff' },
-      duration: 3000,
-    });
-
-    setTimeout(() => {
-      router.push('/#pricing');
-    }, 2000);
-  };
-
-  const handleReviewSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleReviewSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     if (!user) {
       toast.error("You must be logged in to submit a review.");
+      return;
+    }
+    if (!movie?.id) {
+      toast.error("Media is still loading. Please try again.");
       return;
     }
 
     setIsSubmitting(true);
     try {
       await api.post('/reviews', {
-        mediaId: id,
+        mediaId: movie.id,
         rating: Number(rating),
         content: reviewContent,
-        isSpoiler: isSpoiler,
-        tags: selectedTags
+        isSpoiler,
+        tags: selectedTags,
       });
-      
+
       toast.success('Review submitted! Waiting for admin approval.');
       setReviewContent('');
       setRating(10);
       setIsSpoiler(false);
-      setSelectedTags([]); 
+      setSelectedTags([]);
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to submit review.');
     } finally {
@@ -172,54 +220,59 @@ export default function MovieDetails() {
       return;
     }
 
-    setReviews(currentReviews => 
-      currentReviews.map(review => {
-        if (review.id === reviewId) {
-          const hasLiked = review.likes.some(like => like.userId === user.id);
-          const newLikes = hasLiked 
-            ? review.likes.filter(like => like.userId !== user.id)
-            : [...review.likes, { id: 'temp-id', userId: user.id }];
-          return { ...review, likes: newLikes };
+    setReviews((currentReviews) =>
+      currentReviews.map((review) => {
+        if (review.id !== reviewId) {
+          return review;
         }
-        return review;
-      })
+
+        const hasLiked = review.likes.some((like) => like.userId === user.id);
+        const nextLikes = hasLiked
+          ? review.likes.filter((like) => like.userId !== user.id)
+          : [...review.likes, { id: 'temp-id', userId: user.id }];
+
+        return { ...review, likes: nextLikes };
+      }),
     );
 
     try {
       await api.post(`/reviews/${reviewId}/like`);
     } catch (error) {
       toast.error("Failed to update like status.");
-      const res = await api.get(`/media/${id}`);
-      if (res.data.media.reviews) setReviews(res.data.media.reviews);
+      const response = await api.get(detailEndpoint);
+      setReviews((response.data.media?.reviews || []) as Review[]);
     }
   };
 
-  const handleCommentSubmit = async (reviewId: string, e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCommentSubmit = async (reviewId: string, event: React.FormEvent) => {
+    event.preventDefault();
     if (!user) {
       toast.error("Please log in to reply.");
       return;
     }
-    if (!replyContent.trim()) return;
+    if (!replyContent.trim()) {
+      return;
+    }
 
     setIsSubmittingReply(true);
     try {
-      const res = await api.post(`/reviews/${reviewId}/comment`, {
-        content: replyContent
+      const response = await api.post(`/reviews/${reviewId}/comment`, {
+        content: replyContent,
       });
 
-      setReviews(currentReviews => 
-        currentReviews.map(review => {
-          if (review.id === reviewId) {
-            return {
-              ...review,
-              comments: [res.data.comment, ...review.comments]
-            };
+      setReviews((currentReviews) =>
+        currentReviews.map((review) => {
+          if (review.id !== reviewId) {
+            return review;
           }
-          return review;
-        })
+
+          return {
+            ...review,
+            comments: [response.data.comment, ...review.comments],
+          };
+        }),
       );
-      
+
       toast.success("Reply added!");
       setReplyContent('');
       setActiveReplyId(null);
@@ -230,30 +283,32 @@ export default function MovieDetails() {
     }
   };
 
-  // --- NEW: Admin Delete Review Function ---
   const handleAdminDeleteReview = async (reviewId: string) => {
-    if (!window.confirm("Admin Action: Are you sure you want to permanently delete this inappropriate review?")) return;
-    
+    if (!window.confirm("Admin Action: Are you sure you want to permanently delete this inappropriate review?")) {
+      return;
+    }
+
     try {
       await api.delete(`/reviews/${reviewId}`);
       toast.success("Review deleted successfully by Admin!");
-      setReviews(currentReviews => currentReviews.filter(r => r.id !== reviewId));
+      setReviews((currentReviews) => currentReviews.filter((review) => review.id !== reviewId));
     } catch (error: any) {
-
       toast.error(error.response?.data?.message || "Failed to delete the review.");
-      console.error("Delete Error:", error.response?.data);
     }
   };
-  // ----------------------------------------
 
   const toggleTag = (tag: string) => {
     if (selectedTags.includes(tag)) {
-      setSelectedTags(selectedTags.filter(t => t !== tag));
-    } else if (selectedTags.length < 3) {
-      setSelectedTags([...selectedTags, tag]);
-    } else {
-      toast.error('You can only select up to 3 tags.');
+      setSelectedTags(selectedTags.filter((selectedTag) => selectedTag !== tag));
+      return;
     }
+
+    if (selectedTags.length >= 3) {
+      toast.error('You can only select up to 3 tags.');
+      return;
+    }
+
+    setSelectedTags([...selectedTags, tag]);
   };
 
   if (isLoading) {
@@ -265,46 +320,50 @@ export default function MovieDetails() {
   }
 
   if (!movie) {
-    return <div className="min-h-screen bg-[#050505] text-white flex justify-center items-center text-2xl font-bold">🎬 Movie not found!</div>;
+    return <div className="min-h-screen bg-[#050505] text-white flex justify-center items-center text-2xl font-bold">Title not found.</div>;
   }
 
-  const getYouTubeId = (url: string) => {
-    if(!url) return null;
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-    const match = url.match(regExp);
-    return (match && match[2].length === 11) ? match[2] : null;
-  };
-  const trailerId = getYouTubeId(movie.streamingLink);
-  const canPlayMovie = movie.priceType === 'FREE' || (user && user.subscriptionStatus === 'ACTIVE') || user?.role === 'ADMIN';
+  const contentLabel = movie.mediaType === 'TV' ? 'Series' : 'Movie';
+  const creatorLabel = movie.mediaType === 'TV' ? 'Creator' : 'Director';
+  const trailerId = getYouTubeId(movie.previewLink || movie.streamingLink || '');
+  const posterImage = movie.posterUrl || FALLBACK_POSTER;
+  const backdropImage = movie.backdropUrl || posterImage || FALLBACK_BACKDROP;
+  const normalizedPriceType = String(movie.priceType || '').toUpperCase();
+  const isPremiumTitle = normalizedPriceType === 'PREMIUM';
+  const hasPremiumEntitlement =
+    typeof movie.hasAccess === 'boolean'
+      ? movie.hasAccess
+      : Boolean(user && (user.subscriptionStatus === 'ACTIVE' || hasPurchased));
+  const canPlayMovie = !isPremiumTitle || hasPremiumEntitlement;
+  const isPremiumLocked = isPremiumTitle && !hasPremiumEntitlement;
 
   return (
     <div className="min-h-screen bg-[#050505] text-white pb-20">
       <Toaster position="top-center" />
-      
-      {/* HERO SECTION */}
+
       <div className="relative w-full h-[50vh] md:h-[70vh] bg-black border-b border-white/10 group">
         {trailerId ? (
           isPlaying ? (
-            <iframe 
+            <iframe
               className="w-full h-full object-cover animate-in fade-in duration-500"
               src={`https://www.youtube.com/embed/${trailerId}?autoplay=1&controls=1&rel=0`}
-              title="Movie Player"
+              title={`${contentLabel} Player`}
               frameBorder="0"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
             ></iframe>
           ) : (
             <>
-              <iframe 
+              <iframe
                 className="w-full h-full object-cover opacity-50 pointer-events-none"
                 src={`https://www.youtube.com/embed/${trailerId}?autoplay=1&mute=1&loop=1&playlist=${trailerId}&controls=0`}
-                title="Movie Trailer"
+                title={`${contentLabel} Trailer`}
                 frameBorder="0"
                 allow="autoplay"
               ></iframe>
               <div className="absolute inset-0 flex items-center justify-center">
                 {canPlayMovie && (
-                  <button 
+                  <button
                     onClick={() => setIsPlaying(true)}
                     className="bg-red-600/80 hover:bg-red-600 text-white rounded-full p-6 backdrop-blur-md shadow-[0_0_30px_rgba(229,9,20,0.5)] transform hover:scale-110 transition-all opacity-0 group-hover:opacity-100"
                   >
@@ -315,7 +374,12 @@ export default function MovieDetails() {
             </>
           )
         ) : (
-          <div className="w-full h-full bg-[#111] flex items-center justify-center text-gray-500 font-bold">No Media Source Available</div>
+          <div
+            className="w-full h-full bg-cover bg-center"
+            style={{ backgroundImage: `url('${backdropImage}')` }}
+          >
+            <div className="absolute inset-0 bg-black/40"></div>
+          </div>
         )}
         {!isPlaying && <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-transparent pointer-events-none"></div>}
       </div>
@@ -323,58 +387,94 @@ export default function MovieDetails() {
       <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 transition-all duration-500 ${isPlaying ? 'mt-8' : '-mt-32'}`}>
         <div className="bg-[#111]/90 backdrop-blur-xl p-8 md:p-10 rounded-2xl border border-white/10 shadow-2xl">
           <div className="flex flex-col md:flex-row justify-between items-start gap-8">
-            
             <div className="flex-1">
               <h1 className="text-4xl md:text-5xl font-extrabold mb-3 text-white tracking-tight">{movie.title}</h1>
               <div className="flex flex-wrap items-center gap-3 text-sm text-gray-400 font-medium mb-6">
                 <span className="bg-white/10 px-3 py-1 rounded-full">{movie.releaseYear}</span>
-                <span className={`px-3 py-1 border rounded-full font-bold tracking-wider text-xs uppercase ${movie.priceType === 'PREMIUM' ? 'border-yellow-500/50 text-yellow-500 bg-yellow-500/10' : 'border-green-500/50 text-green-500 bg-green-500/10'}`}>
-                  {movie.priceType}
+                <span className={`px-3 py-1 border rounded-full font-bold tracking-wider text-xs uppercase ${isPremiumTitle ? 'border-yellow-500/50 text-yellow-500 bg-yellow-500/10' : 'border-green-500/50 text-green-500 bg-green-500/10'}`}>
+                  {normalizedPriceType || 'FREE'}
                 </span>
+                {typeof movie.averageRating === 'number' && movie.averageRating > 0 && (
+                  <span className="bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 px-3 py-1 rounded-full font-bold">
+                    TMDB {movie.averageRating.toFixed(1)}
+                  </span>
+                )}
                 <span className="text-red-500 flex gap-2">
-                  {movie.genre.map((g, i) => (
-                    <span key={i} className="hover:text-red-400 cursor-pointer">{g}</span>
+                  {movie.genre.map((genreName, index) => (
+                    <span key={index} className="hover:text-red-400 cursor-pointer">{genreName}</span>
                   ))}
                 </span>
               </div>
 
               <p className="text-gray-300 text-lg leading-relaxed mb-8 max-w-3xl">{movie.synopsis}</p>
-              
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm bg-black/30 p-5 rounded-xl border border-white/5">
                 <div>
-                  <span className="text-gray-500 block mb-1 uppercase tracking-wider text-xs font-bold">Director</span>
+                  <span className="text-gray-500 block mb-1 uppercase tracking-wider text-xs font-bold">{creatorLabel}</span>
                   <span className="font-semibold text-white text-base">{movie.director}</span>
                 </div>
                 <div>
                   <span className="text-gray-500 block mb-1 uppercase tracking-wider text-xs font-bold">Main Cast</span>
-                  <span className="font-semibold text-white text-base">{movie.cast.join(', ')}</span>
+                  <span className="font-semibold text-white text-base">{movie.cast.join(', ') || 'Cast details coming soon.'}</span>
                 </div>
               </div>
             </div>
 
             <div className="flex flex-col gap-4 w-full md:w-auto md:min-w-[250px] shrink-0">
-              {!canPlayMovie ? (
-                <button 
-                  onClick={handlePremiumClick}
-                  className="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-400 hover:to-yellow-500 text-black px-6 py-4 rounded-xl font-bold transition-all shadow-[0_0_20px_rgba(234,179,8,0.3)] hover:shadow-[0_0_30px_rgba(234,179,8,0.5)] flex items-center justify-center gap-2 transform hover:-translate-y-1"
-                >
-                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zM12 2a1 1 0 01.967.744L14.146 7.2 17.5 9.134a1 1 0 010 1.732l-3.354 1.935-1.18 4.455a1 1 0 01-1.933 0L9.854 12.8 6.5 10.866a1 1 0 010-1.732l3.354-1.935 1.18-4.455A1 1 0 0112 2z" clipRule="evenodd" /></svg>
-                  Unlock Premium
-                </button>
+              <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/30 shadow-2xl">
+                <img
+                  src={posterImage}
+                  alt={`${movie.title} poster`}
+                  className="w-full h-[360px] object-cover"
+                />
+              </div>
+
+              {isPremiumLocked ? (
+                <div className="flex flex-col gap-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={() => router.push(`/movie-checkout/${movie.id}?type=RENT`)}
+                      className="bg-blue-600/20 hover:bg-blue-600 text-blue-500 hover:text-white px-4 py-3 rounded-xl font-bold transition-all border border-blue-500/30 flex flex-col items-center justify-center text-sm"
+                    >
+                      <span>Rent (48h)</span>
+                      <span className="text-xs font-normal opacity-80">$3.99</span>
+                    </button>
+                    <button
+                      onClick={() => router.push(`/movie-checkout/${movie.id}?type=BUY`)}
+                      className="bg-green-600/20 hover:bg-green-600 text-green-500 hover:text-white px-4 py-3 rounded-xl font-bold transition-all border border-green-500/30 flex flex-col items-center justify-center text-sm"
+                    >
+                      <span>Buy {contentLabel}</span>
+                      <span className="text-xs font-normal opacity-80">$9.99</span>
+                    </button>
+                  </div>
+
+                  <div className="text-center text-gray-500 text-xs font-bold my-1">OR</div>
+
+                  <button
+                    onClick={() => router.push('/#pricing')}
+                    className="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-400 hover:to-yellow-500 text-black px-6 py-3 rounded-xl font-bold transition-all shadow-[0_0_20px_rgba(234,179,8,0.3)] flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zM12 2a1 1 0 01.967.744L14.146 7.2 17.5 9.134a1 1 0 010 1.732l-3.354 1.935-1.18 4.455a1 1 0 01-1.933 0L9.854 12.8 6.5 10.866a1 1 0 010-1.732l3.354-1.935 1.18-4.455A1 1 0 0112 2z" clipRule="evenodd" /></svg>
+                    Unlock with Premium
+                  </button>
+                </div>
               ) : (
-                <button 
+                <button
                   onClick={() => {
+                    if (!canPlayMovie) {
+                      return;
+                    }
                     setIsPlaying(true);
-                    window.scrollTo({ top: 0, behavior: 'smooth' }); 
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
                   className="w-full bg-red-600 hover:bg-red-700 text-white px-6 py-4 rounded-xl font-bold transition-all shadow-[0_0_20px_rgba(229,9,20,0.3)] hover:shadow-[0_0_30px_rgba(229,9,20,0.5)] flex items-center justify-center gap-2 transform hover:-translate-y-1"
                 >
                   <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" /></svg>
-                  {isPlaying ? 'Now Playing' : 'Play Full Movie'}
+                  {isPlaying ? 'Now Playing' : `Play ${contentLabel}`}
                 </button>
               )}
 
-              <button 
+              <button
                 onClick={handleWatchlist}
                 className="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-white px-6 py-4 rounded-xl font-bold transition-all flex items-center justify-center gap-2 backdrop-blur-sm"
               >
@@ -382,13 +482,10 @@ export default function MovieDetails() {
                 Add to Watchlist
               </button>
             </div>
-
           </div>
         </div>
 
-        {/* --- REVIEWS SECTION --- */}
         <div className="mt-16 grid grid-cols-1 lg:grid-cols-3 gap-10">
-          
           <div className="lg:col-span-1">
             <div className="bg-[#111]/80 backdrop-blur-md p-8 rounded-2xl border border-white/10 sticky top-24">
               <h3 className="text-2xl font-bold mb-6 flex items-center gap-3">
@@ -398,17 +495,22 @@ export default function MovieDetails() {
               <form onSubmit={handleReviewSubmit} className="space-y-5">
                 <div>
                   <label className="block text-sm font-medium text-gray-400 mb-2">Rating (1-10)</label>
-                  <input 
-                    type="number" min="1" max="10" 
-                    value={rating} onChange={(e) => setRating(Number(e.target.value))}
+                  <input
+                    type="number"
+                    min="1"
+                    max="10"
+                    value={rating}
+                    onChange={(event) => setRating(Number(event.target.value))}
                     className="w-full bg-black/50 text-white px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-600/50 border border-white/10 transition-all"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-400 mb-2">Your Thoughts</label>
-                  <textarea 
-                    rows={5} value={reviewContent} onChange={(e) => setReviewContent(e.target.value)}
-                    placeholder="What did you think about this movie?"
+                  <textarea
+                    rows={5}
+                    value={reviewContent}
+                    onChange={(event) => setReviewContent(event.target.value)}
+                    placeholder={`What did you think about this ${contentLabel.toLowerCase()}?`}
                     className="w-full bg-black/50 text-white px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-600/50 border border-white/10 resize-none transition-all"
                     required
                   ></textarea>
@@ -417,14 +519,14 @@ export default function MovieDetails() {
                 <div>
                   <label className="block text-sm font-medium text-gray-400 mb-2">Select Tags (Max 3)</label>
                   <div className="flex flex-wrap gap-2">
-                    {AVAILABLE_TAGS.map(tag => (
+                    {AVAILABLE_TAGS.map((tag) => (
                       <button
                         key={tag}
                         type="button"
                         onClick={() => toggleTag(tag)}
                         className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
-                          selectedTags.includes(tag) 
-                            ? 'bg-red-600 text-white border border-red-500 shadow-[0_0_10px_rgba(229,9,20,0.4)]' 
+                          selectedTags.includes(tag)
+                            ? 'bg-red-600 text-white border border-red-500 shadow-[0_0_10px_rgba(229,9,20,0.4)]'
                             : 'bg-black/50 text-gray-400 border border-white/10 hover:border-white/30 hover:text-white'
                         }`}
                       >
@@ -433,18 +535,21 @@ export default function MovieDetails() {
                     ))}
                   </div>
                 </div>
-                
+
                 <div className="flex items-center gap-2 pt-2">
-                  <input 
-                    type="checkbox" id="spoiler" 
-                    checked={isSpoiler} onChange={(e) => setIsSpoiler(e.target.checked)}
+                  <input
+                    type="checkbox"
+                    id="spoiler"
+                    checked={isSpoiler}
+                    onChange={(event) => setIsSpoiler(event.target.checked)}
                     className="w-4 h-4 text-red-600 bg-gray-700 border-gray-600 rounded focus:ring-red-600"
                   />
                   <label htmlFor="spoiler" className="text-sm font-medium text-gray-400 cursor-pointer">This review contains spoilers</label>
                 </div>
 
-                <button 
-                  type="submit" disabled={isSubmitting}
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
                   className="w-full bg-white hover:bg-gray-200 text-black font-extrabold py-3.5 rounded-xl transition-all shadow-lg hover:shadow-white/20 mt-2"
                 >
                   {isSubmitting ? 'Submitting...' : 'Post Review'}
@@ -460,18 +565,18 @@ export default function MovieDetails() {
                 {reviews.length} {reviews.length === 1 ? 'Review' : 'Reviews'}
               </span>
             </div>
-            
+
             {reviews.length === 0 ? (
               <div className="bg-[#111]/50 p-12 rounded-2xl border border-white/5 text-center flex flex-col items-center justify-center">
-                <span className="text-6xl mb-4 opacity-50">🍿</span>
+                <span className="text-6xl mb-4 opacity-50">No reviews</span>
                 <p className="text-xl font-medium text-gray-400">No reviews yet.</p>
                 <p className="text-gray-500 mt-2">Be the first to share your thoughts!</p>
               </div>
             ) : (
               <div className="space-y-6">
                 {reviews.map((review) => {
-                  const hasLiked = user ? review.likes?.some(like => like.userId === user.id) : false;
-                  
+                  const hasLiked = user ? review.likes?.some((like) => like.userId === user.id) : false;
+
                   return (
                     <div key={review.id} className="bg-[#111]/80 hover:bg-[#151515] p-6 md:p-8 rounded-2xl border border-white/5 transition-colors relative overflow-hidden">
                       {review.isSpoiler && (
@@ -479,7 +584,7 @@ export default function MovieDetails() {
                           SPOILER
                         </div>
                       )}
-                      
+
                       <div className="flex justify-between items-start mb-4">
                         <div className="flex items-center gap-4">
                           <div className="w-12 h-12 rounded-full bg-gradient-to-br from-red-600 to-red-900 flex items-center justify-center font-bold text-xl shadow-lg border border-red-500/30">
@@ -490,11 +595,10 @@ export default function MovieDetails() {
                             <p className="text-sm text-gray-500">{new Date(review.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
                           </div>
                         </div>
-                        
+
                         <div className="flex items-center gap-3 mt-2 md:mt-0">
-                          {/* --- Admin Delete Button --- */}
                           {user?.role === 'ADMIN' && (
-                            <button 
+                            <button
                               onClick={() => handleAdminDeleteReview(review.id)}
                               className="bg-red-600/20 hover:bg-red-600 text-red-500 hover:text-white p-2 rounded-lg transition-colors border border-red-500/20"
                               title="Delete Review (Admin)"
@@ -515,8 +619,8 @@ export default function MovieDetails() {
 
                       {review.tags && review.tags.length > 0 && (
                         <div className="flex flex-wrap gap-2 mt-4 mb-4">
-                          {review.tags.map((tag, i) => (
-                            <span key={i} className="bg-white/5 text-gray-300 px-2 py-1 rounded text-xs border border-white/5">
+                          {review.tags.map((tag, index) => (
+                            <span key={index} className="bg-white/5 text-gray-300 px-2 py-1 rounded text-xs border border-white/5">
                               #{tag}
                             </span>
                           ))}
@@ -524,7 +628,7 @@ export default function MovieDetails() {
                       )}
 
                       <div className="flex items-center gap-6 border-t border-white/10 pt-4 mt-6">
-                        <button 
+                        <button
                           onClick={() => handleLikeToggle(review.id)}
                           className={`flex items-center gap-2 text-sm font-bold transition-colors ${hasLiked ? 'text-red-500' : 'text-gray-400 hover:text-white'}`}
                         >
@@ -533,8 +637,8 @@ export default function MovieDetails() {
                           </svg>
                           {review.likes?.length || 0}
                         </button>
-                        
-                        <button 
+
+                        <button
                           onClick={() => setActiveReplyId(activeReplyId === review.id ? null : review.id)}
                           className="flex items-center gap-2 text-sm font-bold text-gray-400 hover:text-white transition-colors"
                         >
@@ -544,17 +648,17 @@ export default function MovieDetails() {
                       </div>
 
                       {activeReplyId === review.id && (
-                        <form onSubmit={(e) => handleCommentSubmit(review.id, e)} className="mt-4 flex gap-3 animate-in fade-in slide-in-from-top-2">
-                          <input 
-                            type="text" 
+                        <form onSubmit={(event) => handleCommentSubmit(review.id, event)} className="mt-4 flex gap-3 animate-in fade-in slide-in-from-top-2">
+                          <input
+                            type="text"
                             value={replyContent}
-                            onChange={(e) => setReplyContent(e.target.value)}
+                            onChange={(event) => setReplyContent(event.target.value)}
                             placeholder="Write a reply..."
                             className="flex-1 bg-black/50 border border-white/10 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-red-500"
                             autoFocus
                           />
-                          <button 
-                            type="submit" 
+                          <button
+                            type="submit"
                             disabled={isSubmittingReply || !replyContent.trim()}
                             className="bg-white text-black px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-200 disabled:opacity-50 transition-colors"
                           >
@@ -565,7 +669,7 @@ export default function MovieDetails() {
 
                       {review.comments && review.comments.length > 0 && (
                         <div className="mt-6 space-y-4 pl-4 border-l-2 border-white/10">
-                          {review.comments.map(comment => (
+                          {review.comments.map((comment) => (
                             <div key={comment.id} className="bg-black/30 p-4 rounded-xl">
                               <div className="flex items-center gap-2 mb-2">
                                 <span className="font-bold text-white text-sm">{comment.user.name}</span>
@@ -576,7 +680,6 @@ export default function MovieDetails() {
                           ))}
                         </div>
                       )}
-
                     </div>
                   );
                 })}
@@ -590,7 +693,6 @@ export default function MovieDetails() {
             <MovieSlider title="More Like This" movies={similarMovies} />
           </div>
         )}
-
       </div>
     </div>
   );

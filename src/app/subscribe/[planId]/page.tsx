@@ -1,5 +1,6 @@
 "use client";
 
+import axios from 'axios';
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { loadStripe } from '@stripe/stripe-js';
@@ -16,6 +17,7 @@ export default function SubscribePage() {
   const router = useRouter();
   
   const [clientSecret, setClientSecret] = useState('');
+  const [subscriptionId, setSubscriptionId] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
   // Define plan details for the UI based on the URL parameter
@@ -36,9 +38,14 @@ export default function SubscribePage() {
       try {
         const response = await api.post('/subscriptions/create-intent', { planId });
         setClientSecret(response.data.clientSecret);
-      } catch (error: any) {
+        setSubscriptionId(response.data.subscriptionId || '');
+      } catch (error: unknown) {
+        const message = axios.isAxiosError<{ message?: string }>(error)
+          ? error.response?.data?.message
+          : undefined;
+
         console.error("Subscription Error:", error);
-        alert(error.response?.data?.message || "Failed to initialize subscription");
+        alert(message || "Failed to initialize subscription");
         router.push('/');
       } finally {
         setIsLoading(false);
@@ -88,6 +95,7 @@ export default function SubscribePage() {
           <Elements stripe={stripePromise} options={{ clientSecret, appearance: { theme: 'night' } }}>
             <SubscriptionForm 
               clientSecret={clientSecret} 
+              subscriptionId={subscriptionId}
               planName={currentPlan.name} 
               price={currentPlan.price} 
             />

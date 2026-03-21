@@ -13,6 +13,7 @@ export default function AdminDashboard() {
   const [formData, setFormData] = useState({
     title: '', synopsis: '', genre: '', releaseYear: '', 
     director: '', cast: '', streamingPlatform: '', priceType: 'FREE', streamingLink: '',
+    posterUrl: '',
     isFeatured: false,
   });
 
@@ -50,7 +51,7 @@ export default function AdminDashboard() {
   const fetchMediaList = async () => {
     setIsLoadingMedia(true);
     try {
-      const response = await api.get('/media');
+      const response = await api.get('/media', { params: { source: 'MANUAL' } });
       setMediaList(response.data.media || []);
     } catch (error) {
       toast.error('Failed to load media list');
@@ -101,6 +102,7 @@ export default function AdminDashboard() {
       streamingPlatform: media.streamingPlatform ? media.streamingPlatform.join(', ') : '',
       priceType: media.priceType || 'FREE',
       streamingLink: media.streamingLink || '',
+      posterUrl: media.posterUrl || '',
       isFeatured: media.isFeatured || false,
     });
     setActiveTab('add-media'); 
@@ -154,6 +156,7 @@ export default function AdminDashboard() {
       setFormData({
         title: '', synopsis: '', genre: '', releaseYear: '', director: '', 
         cast: '', streamingPlatform: '', priceType: 'FREE', streamingLink: '',
+        posterUrl: '',
         isFeatured: false,
       });
       if (editId) setActiveTab('manage-media'); 
@@ -180,7 +183,7 @@ export default function AdminDashboard() {
           onClick={() => {
             setActiveTab('add-media');
             setEditId(null);
-            setFormData({title: '', synopsis: '', genre: '', releaseYear: '', director: '', cast: '', streamingPlatform: '', priceType: 'FREE', streamingLink: '', isFeatured: false});
+            setFormData({title: '', synopsis: '', genre: '', releaseYear: '', director: '', cast: '', streamingPlatform: '', priceType: 'FREE', streamingLink: '', posterUrl: '', isFeatured: false});
           }}
           className={`px-4 py-2 font-bold rounded transition-colors ${activeTab === 'add-media' ? 'bg-red-600 text-white shadow-[0_0_15px_rgba(229,9,20,0.3)]' : 'text-gray-400 hover:text-white bg-white/5'}`}
         >
@@ -337,6 +340,10 @@ export default function AdminDashboard() {
                 <input type="url" name="streamingLink" value={formData.streamingLink} onChange={handleMediaChange} required className="w-full bg-[#222] text-white px-4 py-3 rounded focus:outline-none focus:border-red-600" />
               </div>
               <div>
+                <label className="block text-sm font-medium text-gray-400 mb-1">Poster URL</label>
+                <input type="url" name="posterUrl" value={formData.posterUrl} onChange={handleMediaChange} placeholder="https://example.com/poster.jpg" className="w-full bg-[#222] text-white px-4 py-3 rounded focus:outline-none focus:border-red-600" />
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-gray-400 mb-1">Price Type</label>
                 <select name="priceType" value={formData.priceType} onChange={handleMediaChange} className="w-full bg-[#222] text-white px-4 py-3 rounded focus:outline-none focus:border-red-600 cursor-pointer">
                   <option value="FREE">Free</option>
@@ -398,16 +405,27 @@ export default function AdminDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {mediaList.map((media: any) => (
                 <div key={media.id} className="bg-[#1a1a1a] p-4 rounded-xl border border-white/10 flex items-center justify-between gap-4 hover:border-white/20 transition-all">
-                  <div className="flex-1 overflow-hidden">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h4 className="font-bold text-white truncate text-lg">{media.title}</h4>
-                      {media.isFeatured && <span className="bg-red-600/20 text-red-500 text-[10px] px-2 py-0.5 rounded uppercase font-bold border border-red-500/20">Featured</span>}
+                  <div className="flex items-center gap-4 flex-1 overflow-hidden">
+                    <img
+                      src={media.posterUrl || "https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=500&auto=format&fit=crop"}
+                      alt={media.title}
+                      className="w-16 h-24 rounded-lg object-cover border border-white/10 shrink-0"
+                    />
+
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h4 className="font-bold text-white truncate text-lg">{media.title}</h4>
+                        {media.isFeatured && <span className="bg-red-600/20 text-red-500 text-[10px] px-2 py-0.5 rounded uppercase font-bold border border-red-500/20">Featured</span>}
+                      </div>
+                      <p className="text-xs text-gray-400 flex gap-2">
+                        <span>{media.releaseYear}</span> • 
+                        <span className={media.priceType === 'PREMIUM' ? 'text-yellow-500' : 'text-green-500'}>{media.priceType}</span> • 
+                        <span>👁️ {media.viewCount}</span>
+                      </p>
+                      <p className="text-[11px] text-gray-500 truncate mt-1">
+                        {media.posterUrl || 'No poster URL saved'}
+                      </p>
                     </div>
-                    <p className="text-xs text-gray-400 flex gap-2">
-                      <span>{media.releaseYear}</span> • 
-                      <span className={media.priceType === 'PREMIUM' ? 'text-yellow-500' : 'text-green-500'}>{media.priceType}</span> • 
-                      <span>👁️ {media.viewCount}</span>
-                    </p>
                   </div>
                   
                   <div className="flex gap-2">

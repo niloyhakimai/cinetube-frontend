@@ -3,16 +3,20 @@
 import { useState } from 'react';
 import { useStripe, useElements, CardElement } from '@stripe/react-stripe-js';
 import toast from 'react-hot-toast';
+import { api } from '@/lib/axios';
+import { useAuth } from '@/context/AuthContext';
 
 interface SubscriptionFormProps {
   clientSecret: string;
   planName: string;
   price: string;
+  subscriptionId?: string;
 }
 
-export default function SubscriptionForm({ clientSecret, planName, price }: SubscriptionFormProps) {
+export default function SubscriptionForm({ clientSecret, planName, price, subscriptionId }: SubscriptionFormProps) {
   const stripe = useStripe();
   const elements = useElements();
+  const { updateUser } = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -23,7 +27,6 @@ export default function SubscriptionForm({ clientSecret, planName, price }: Subs
     const cardElement = elements.getElement(CardElement);
     if (!cardElement) return;
 
-    // Confirm the subscription payment intent
     const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
       payment_method: {
         card: cardElement,
@@ -35,26 +38,38 @@ export default function SubscriptionForm({ clientSecret, planName, price }: Subs
       toast.error(error.message || 'Payment failed. Please try again.');
       setIsProcessing(false);
     } else if (paymentIntent && paymentIntent.status === 'succeeded') {
-      // সাকসেস মেসেজ একটু ডিটেইলস দাও
-      toast.success(
-        (t) => (
-          <span>
-            <b>Payment Successful!</b> <br />
-            We've sent a confirmation email to your inbox. 📧
-          </span>
-        ),
-        { duration: 6000 }
-      );
       
-      // Local storage আপডেট
-      const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
-      storedUser.subscriptionPlan = planName.includes('Yearly') ? 'YEARLY' : 'MONTHLY';
-      storedUser.subscriptionStatus = 'ACTIVE';
-      localStorage.setItem('user', JSON.stringify(storedUser));
+      try {
+        const planType = planName.toLowerCase().includes('yearly') ? 'yearly' : 'monthly';
 
-      setTimeout(() => {
-        window.location.href = '/profile';
-      }, 3000);
+        const response = await api.post('/subscriptions/confirm', {
+          planId: planType,
+          subscriptionId,
+        });
+
+        toast.success(
+          () => (
+            <span>
+              <b>Payment Successful!</b> <br />
+              Your account has been upgraded to PRO. 🚀
+            </span>
+          ),
+          { duration: 5000 }
+        );
+
+        if (response.data?.user) {
+          updateUser(response.data.user);
+        }
+
+        setTimeout(() => {
+          window.location.href = '/profile';
+        }, 2000);
+
+      } catch (err) {
+        console.error("Failed to update database:", err);
+        toast.error("Payment succeeded, but failed to update profile.");
+        setIsProcessing(false);
+      }
     }
   };
 

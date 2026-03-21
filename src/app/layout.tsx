@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/shared/Navbar";
 import Footer from "@/components/shared/Footer";
+import { AuthProvider } from "@/context/AuthContext";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -19,12 +20,14 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.className} bg-[#050505] text-white min-h-screen flex flex-col`}>
-        <Navbar />
-        {/* Added padding-top to prevent content from hiding behind the fixed navbar */}
-        <main className="grow pt-20">
-          {children}
-        </main>
-        <Footer />
+        <AuthProvider>
+          <Navbar />
+          {/* Added padding-top to prevent content from hiding behind the fixed navbar */}
+          <main className="grow pt-20">
+            {children}
+          </main>
+          <Footer />
+        </AuthProvider>
       </body>
     </html>
   );

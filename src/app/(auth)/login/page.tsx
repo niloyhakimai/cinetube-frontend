@@ -7,9 +7,11 @@ import { useRouter } from 'next/navigation';
 import toast, { Toaster } from 'react-hot-toast';
 import { api } from '@/lib/axios';
 import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
+import { useAuth } from '@/context/AuthContext';
 
 export default function Login() {
   const router = useRouter();
+  const { login } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -27,15 +29,11 @@ export default function Login() {
     try {
       const response = await api.post('/auth/login', formData);
       toast.success('Logged in successfully!');
-      
-      // Save token and user info to local storage
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
+      login(response.data.token, response.data.user);
 
       // Redirect to home page
       setTimeout(() => {
         router.push('/');
-        router.refresh(); // Force refresh to update navbar state
       }, 1000);
     } catch (error: unknown) {
       const message = axios.isAxiosError<{ message?: string }>(error)
@@ -105,15 +103,12 @@ export default function Login() {
                   const res = await api.post('/auth/google', {
                     credential: credentialResponse.credential,
                   });
-                  
-                  localStorage.setItem('token', res.data.token);
-                  localStorage.setItem('user', JSON.stringify(res.data.user));
+                  login(res.data.token, res.data.user);
                   
                   toast.success('Successfully logged in with Google!');
                   
                   setTimeout(() => {
                     router.push('/');
-                    router.refresh();
                   }, 1000);
                   
                 } catch (error) {

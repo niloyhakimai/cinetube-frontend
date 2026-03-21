@@ -7,9 +7,11 @@ import { useRouter } from 'next/navigation';
 import toast, { Toaster } from 'react-hot-toast';
 import { api } from '@/lib/axios';
 import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
+import { useAuth } from '@/context/AuthContext';
 
 export default function Register() {
   const router = useRouter();
+  const { login } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -113,15 +115,13 @@ export default function Register() {
                   const res = await api.post('/auth/google', {
                     credential: credentialResponse.credential,
                   });
-                  
-                  // Save to LocalStorage
-                  localStorage.setItem('token', res.data.token);
-                  localStorage.setItem('user', JSON.stringify(res.data.user));
+                  login(res.data.token, res.data.user);
                   
                   toast.success('Successfully logged in with Google!');
                   router.push('/'); // Redirect to Home
                   
                 } catch (error) {
+                  console.error("Google Registration Error:", error);
                   toast.error('Google registration failed. Please try again.');
                 }
               }}

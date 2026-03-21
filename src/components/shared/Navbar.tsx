@@ -1,30 +1,21 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import AdvancedSearch from './AdvancedSearch'; 
+import { useAuth } from '@/context/AuthContext';
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [user, setUser] = useState<{ id: string; name: string; email: string; role: string } | null>(null);
+  const { user, logout, isHydrated } = useAuth();
   const router = useRouter();
 
-  // Check if user is logged in on component mount
-  useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-  }, []);
-
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setUser(null);
+    logout();
     setIsProfileOpen(false);
     setIsOpen(false);
     toast.success('Logged out successfully!');
@@ -66,7 +57,9 @@ export default function Navbar() {
             </div>
 
             {/* Conditional Rendering based on Auth State */}
-            {user ? (
+            {!isHydrated ? (
+              <div className="h-10 w-24 shrink-0 rounded-md bg-white/10 animate-pulse"></div>
+            ) : user ? (
               <div className="relative shrink-0">
                 <button 
                   onClick={() => setIsProfileOpen(!isProfileOpen)}

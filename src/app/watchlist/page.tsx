@@ -5,8 +5,19 @@ import Link from 'next/link';
 import MovieCard from '@/components/cards/MovieCard';
 import { api } from '@/lib/axios';
 
+interface WatchlistItem {
+  id: string;
+  media: {
+    id: string;
+    title: string;
+    genre: string[];
+    releaseYear: number;
+    posterUrl?: string | null;
+  };
+}
+
 export default function Watchlist() {
-  const [watchlist, setWatchlist] = useState<any[]>([]);
+  const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -61,7 +72,7 @@ export default function Watchlist() {
                 key={item.id}
                 id={item.media.id}
                 title={item.media.title}
-                image="https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=500&auto=format&fit=crop"
+                image={item.media.posterUrl || "https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=500&auto=format&fit=crop"}
                 rating={8.5} 
                 year={item.media.releaseYear}
                 genre={item.media.genre[0] || "Unknown"}

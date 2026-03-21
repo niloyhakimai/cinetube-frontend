@@ -7,11 +7,12 @@ interface MovieCardProps {
   rating: number;
   year: number;
   genre: string;
+  href?: string;
 }
 
-export default function MovieCard({ id, title, image, rating, year, genre }: MovieCardProps) {
+export default function MovieCard({ id, title, image, rating, year, genre, href }: MovieCardProps) {
   return (
-    <Link href={`/movies/${id}`} className="group relative flex-none w-40 md:w-48 lg:w-56 overflow-hidden rounded-md transition-all duration-300 hover:scale-105 hover:z-10 cursor-pointer shadow-lg">
+    <Link href={href || `/movies/${id}`} className="group relative flex-none w-40 md:w-48 lg:w-56 overflow-hidden rounded-md transition-all duration-300 hover:scale-105 hover:z-10 cursor-pointer shadow-lg">
       {/* Movie Poster */}
       <div className="relative w-full aspect-2/3">
         <img 

@@ -48,16 +48,16 @@ export default function Pricing() {
     }
   }, []);
 
-  // Hydration error ঠেকানোর জন্য
+  // Hydration error 
   if (!mounted) return null;
 
-  // যদি ইউজারের সাবস্ক্রিপশন স্ট্যাটাস ACTIVE হয়, তাহলে এই সেকশনটি আর দেখাবে না
+
   if (user && user.subscriptionStatus === 'ACTIVE') {
     return null; 
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+    <section id="pricing" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
       <div className="text-center max-w-3xl mx-auto mb-16">
         <h2 className="text-3xl md:text-5xl font-bold text-white mb-4">Choose Your Plan</h2>
         <p className="text-gray-400 text-lg">
@@ -99,6 +99,6 @@ export default function Pricing() {
           </div>
         ))}
       </div>
-    </div>
+    </section>
   );
 }

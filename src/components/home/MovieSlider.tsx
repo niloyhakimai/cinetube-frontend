@@ -10,6 +10,7 @@ interface Movie {
   rating: number;
   year: number;
   genre: string;
+  href?: string;
 }
 
 interface MovieSliderProps {

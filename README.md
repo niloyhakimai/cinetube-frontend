@@ -1,36 +1,160 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🎬 CineTube - Frontend (User & Admin Portal)
 
-## Getting Started
+CineTube is a premium movie and TV series streaming platform. This repository contains the **Frontend** application built with **Next.js (App Router)**, delivering a seamless Netflix-style experience for browsing, streaming, subscriptions, and community interaction.
 
-First, run the development server:
+---
+
+## 🚀 Live Demo
+
+- 🌐 **Live Website:** [Insert Frontend Live URL here]  
+- 🔗 **Backend API Repo:** [Insert Backend Repo Link here]  
+- 🎥 **Project Overview Video:** [Insert Loom/YouTube Link here]  
+
+---
+
+## 🔐 Admin Credentials (Testing)
+
+- **Email:** admin@cinetube.com  
+- **Password:** Admin123!  
+
+---
+
+## ✨ Key Features
+
+### 🎥 Dynamic Media Catalog
+- Browse trending, top-rated, and newly added content  
+- Real-time synchronization with TMDB API  
+
+### 💳 Premium Streaming & Payments
+- Rent movies (48 hours access)  
+- Buy movies (lifetime access)  
+- Subscribe (Monthly / Yearly plans)  
+- Integrated with **Stripe** for secure payments  
+
+### 🌐 Interactive Community
+- Rate movies (1–10 scale)  
+- Write reviews with spoiler tags  
+- Nested comment system  
+
+### 👤 User Dashboard
+- Manage watchlist  
+- View purchase history  
+- Track active subscriptions  
+
+### 🛠️ Admin Dashboard
+- Moderate user reviews  
+- Manage media overrides  
+- View platform analytics  
+
+---
+
+## 🧰 Tech Stack
+
+| Category              | Technology |
+|----------------------|-----------|
+| Framework            | Next.js (App Router), React |
+| Styling              | Tailwind CSS |
+| State & API Handling | Axios, React Hooks |
+| Payments             | Stripe.js, React Stripe Elements |
+| UI & Notifications   | React Hot Toast |
+
+---
+
+## ⚙️ Local Setup Instructions
+
+### 1️⃣ Clone Repository
+
+```bash
+git clone [Your Frontend Repo URL]
+cd cinetube-frontend
+```
+
+### 2️⃣ Install Dependencies
+
+```bash
+npm install
+```
+
+### 3️⃣ Environment Variables
+
+Create a `.env.local` file in the root directory and add:
+
+```env
+NEXT_PUBLIC_API_URL="http://localhost:5000/api"
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="your_stripe_publishable_key"
+```
+
+---
+
+### 4️⃣ Run Development Server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Then open:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+👉 http://localhost:3000
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## 📦 Project Structure (Overview)
 
-To learn more about Next.js, take a look at the following resources:
+```
+/app          → App Router pages & layouts  
+/components   → Reusable UI components  
+/lib          → API & utility functions  
+/hooks        → Custom React hooks  
+/styles       → Global styles  
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 🔒 Security Notes
 
-## Deploy on Vercel
+- Never expose secret keys in frontend  
+- Use only `NEXT_PUBLIC_` variables on client side  
+- Stripe secret key must remain in backend  
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 📈 Future Improvements
+
+- 🔍 Advanced search & filtering  
+- 📱 Mobile app (React Native)  
+- 🎯 AI-based recommendations  
+- 🌍 Multi-language support  
+
+---
+
+## 🤝 Contribution
+
+Contributions are welcome!
+
+1. Fork the repository  
+2. Create a new branch  
+3. Commit your changes  
+4. Open a Pull Request  
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License.
+
+---
+
+## 💡 Developer Note
+
+> This project demonstrates full-stack architecture with real-world features like payments, authentication, admin control, and scalable UI patterns.
+
+---
+
+## 👨‍💻 Author
+
+**Niloy Hakim**  
+Building scalable apps with Full Stack 🚀
+
+---
+
+⭐ If you like this project, don’t forget to star the repo!
