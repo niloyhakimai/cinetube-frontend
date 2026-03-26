@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-export default function AdvancedSearch() {
+function AdvancedSearchContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -23,9 +23,7 @@ export default function AdvancedSearch() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const submitSearch = () => {
     const params = new URLSearchParams();
     if (query) params.append('q', query);
     if (genre) params.append('genre', genre);
@@ -36,6 +34,11 @@ export default function AdvancedSearch() {
 
     setIsOpen(false);
     router.push(`/search?${params.toString()}`);
+  };
+
+  const handleSearch = (event: React.FormEvent) => {
+    event.preventDefault();
+    submitSearch();
   };
 
   const clearFilters = () => {
@@ -191,7 +194,7 @@ export default function AdvancedSearch() {
             </button>
             <button 
               type="button" 
-              onClick={handleSearch} 
+              onClick={submitSearch} 
               className="flex-[2] md:flex-none px-6 py-2.5 md:py-2 rounded-lg text-sm font-bold bg-red-600 hover:bg-red-700 text-white transition-colors shadow-lg"
             >
               Apply & Search
@@ -200,5 +203,17 @@ export default function AdvancedSearch() {
         </div>
       )}
     </div>
+  );
+}
+
+function AdvancedSearchFallback() {
+  return <div className="h-11 w-full rounded-full bg-white/10 animate-pulse"></div>;
+}
+
+export default function AdvancedSearch() {
+  return (
+    <Suspense fallback={<AdvancedSearchFallback />}>
+      <AdvancedSearchContent />
+    </Suspense>
   );
 }

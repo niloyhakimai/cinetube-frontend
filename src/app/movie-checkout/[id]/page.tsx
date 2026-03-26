@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
@@ -10,7 +10,7 @@ import { Toaster } from 'react-hot-toast';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
 
-export default function MovieCheckoutPage() {
+function MovieCheckoutContent() {
   const params = useParams();
   const searchParams = useSearchParams();
   const { id } = params;
@@ -83,5 +83,21 @@ export default function MovieCheckoutPage() {
         )}
       </div>
     </div>
+  );
+}
+
+function MovieCheckoutFallback() {
+  return (
+    <div className="min-h-screen bg-[#050505] flex items-center justify-center">
+      <div className="w-12 h-12 border-4 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  );
+}
+
+export default function MovieCheckoutPage() {
+  return (
+    <Suspense fallback={<MovieCheckoutFallback />}>
+      <MovieCheckoutContent />
+    </Suspense>
   );
 }
