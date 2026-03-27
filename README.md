@@ -6,9 +6,9 @@ CineTube is a premium movie and TV series streaming platform. This repository co
 
 ## 🚀 Live Demo
 
-- 🌐 **Live Website:** https://cinetube-self.vercel.app/  
-- 🔗 **Backend API Repo:** https://github.com/niloyhakimai/cinetube-backend  
-- 🎥 **Project Overview Video:** [Insert Loom/YouTube Link here]  
+- 🌐 **Live App:** [cinetube-self.vercel.app](https://cinetube-self.vercel.app)
+- 🔗 **Backend API:** [cinetube-backend](https://github.com/niloyhakimai/cinetube-backend) 
+- 🎥 **Project Overview Video:** [![Watch Video](./thumbnail.png)](https://drive.google.com/file/d/1h4lo7pVW4JijYmOeI3oFn3Ce3s1gjvhT/view)
 
 ---
 
