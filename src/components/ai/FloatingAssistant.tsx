@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { api } from '@/lib/axios';
 import { useAuth } from '@/context/AuthContext';
@@ -8,6 +8,8 @@ import { useAuth } from '@/context/AuthContext';
 type AssistantMessage = {
   role: 'assistant' | 'user';
   text: string;
+  recommendations?: string[];
+  suggestions?: string[];
 };
 
 type AssistantResponse = {
@@ -66,17 +68,12 @@ function labelSuggestionRoute(route: string) {
 }
 
 function formatAssistantResponse(response: AssistantResponse) {
-  const blocks = [response.message.trim()];
-
-  if (response.recommendations && response.recommendations.length > 0) {
-    blocks.push(`Picks: ${response.recommendations.slice(0, 3).map((item) => item.title).join(', ')}`);
-  }
-
-  if (response.suggestions && response.suggestions.length > 0) {
-    blocks.push(`Try: ${response.suggestions.slice(0, 3).map(labelSuggestionRoute).join(' | ')}`);
-  }
-
-  return blocks.join('\n\n');
+  return {
+    role: 'assistant' as const,
+    text: response.message.trim(),
+    recommendations: response.recommendations?.slice(0, 3).map((item) => item.title) || [],
+    suggestions: response.suggestions?.slice(0, 3).map(labelSuggestionRoute) || [],
+  };
 }
 
 function buildOfflineAssistantResponse(message: string, pathname: string): AssistantResponse {
@@ -142,8 +139,21 @@ export default function FloatingAssistant() {
       text: 'Need help finding something to watch? I can suggest titles, explain plans, and guide you around CineTube.',
     },
   ]);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   const quickPrompts = useMemo(() => getQuickPrompts(pathname), [pathname]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      messagesEndRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [isLoading, isOpen, messages]);
 
   if (!pathname || isHiddenPath(pathname)) {
     return null;
@@ -172,28 +182,30 @@ export default function FloatingAssistant() {
       setLastSource(response.data.source);
       setMessages((current) => [
         ...current,
-        { role: 'assistant', text: formatAssistantResponse(response.data) },
+        formatAssistantResponse(response.data),
       ]);
     } catch {
       const offlineResponse = buildOfflineAssistantResponse(trimmed, pathname);
       setLastSource('fallback');
       setMessages((current) => [
         ...current,
-        {
-          role: 'assistant',
-          text: formatAssistantResponse(offlineResponse),
-        },
+        formatAssistantResponse(offlineResponse),
       ]);
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Check if conversation has started (more than 1 message means user interacted)
+  const isChatStarted = messages.length > 1;
+
   return (
     <div className="fixed inset-x-4 bottom-4 z-[80] flex justify-end sm:inset-x-auto sm:bottom-6 sm:right-6">
       {isOpen ? (
-        <div className="assistant-panel flex max-h-[78svh] w-full flex-col overflow-hidden sm:h-[560px] sm:w-[24rem]">
-          <div className="flex items-center justify-between border-b border-[var(--color-border)] bg-[linear-gradient(180deg,rgba(20,20,22,0.98),rgba(10,10,12,0.94))] px-5 py-4">
+        <div className="assistant-panel flex max-h-[78svh] w-full min-h-0 flex-col overflow-hidden rounded-2xl bg-[#0a0a0c] sm:h-[560px] sm:w-[24rem]">
+          
+          {/* Header - added shrink-0 to prevent squashing */}
+          <div className="flex shrink-0 items-center justify-between border-b border-[var(--color-border)] bg-[linear-gradient(180deg,rgba(20,20,22,0.98),rgba(10,10,12,0.94))] px-5 py-4">
             <div>
               <p className="text-sm font-black uppercase tracking-[0.24em] text-red-400">CineTube AI</p>
               <p className="mt-1 text-sm text-[var(--color-muted)]">
@@ -216,33 +228,65 @@ export default function FloatingAssistant() {
             </button>
           </div>
 
-          <div className="border-b border-[var(--color-border)] bg-black/25 px-5 py-3">
-            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-              {quickPrompts.map((prompt) => (
-                <button
-                  key={prompt}
-                  type="button"
-                  onClick={() => handleSend(prompt)}
-                  disabled={isLoading}
-                  className="secondary-button !w-full !justify-start !rounded-2xl !px-3 !py-2 text-left text-xs leading-5 whitespace-normal sm:!w-auto sm:!rounded-full"
-                >
-                  {prompt}
-                </button>
-              ))}
+          {/* Quick Prompts - Hide once user starts chatting to give more space */}
+          {!isChatStarted && (
+            <div className="shrink-0 border-b border-[var(--color-border)] bg-black/25 px-5 py-3 transition-all duration-300">
+              <div className="flex flex-wrap gap-2">
+                {quickPrompts.map((prompt) => (
+                  <button
+                    key={prompt}
+                    type="button"
+                    onClick={() => handleSend(prompt)}
+                    disabled={isLoading}
+                    className="secondary-button !justify-start !rounded-2xl !px-3 !py-2 text-left text-xs leading-5 whitespace-normal"
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
-          <div className="flex-1 space-y-4 overflow-y-auto bg-[radial-gradient(circle_at_top,rgba(229,9,20,0.08),transparent_34%)] px-5 py-4">
+          {/* Chat Messages Area - flex-1 and min-h-0 so it scrolls properly */}
+          <div className="assistant-scrollbar flex min-h-0 flex-1 flex-col gap-4 overflow-x-hidden overflow-y-auto bg-[radial-gradient(circle_at_top,rgba(229,9,20,0.08),transparent_34%)] px-5 py-4">
             {messages.map((message, index) => (
               <div
                 key={`${message.role}-${index}`}
-                className={`max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-6 whitespace-pre-line ${
+                className={`w-full min-w-0 max-w-[90%] rounded-2xl px-4 py-3 text-sm leading-6 ${
                   message.role === 'assistant'
                     ? 'assistant-bubble text-white'
                     : 'ml-auto bg-red-600 text-white'
                 }`}
               >
-                {message.text}
+                <p className="whitespace-pre-line break-words">{message.text}</p>
+                
+                {/* Assistant Recommendations */}
+                {message.role === 'assistant' && Boolean(message.recommendations?.length) && (
+                  <div className="mt-4 rounded-2xl border border-white/[0.08] bg-black/20 px-3 py-3">
+                    <p className="text-[11px] font-black uppercase tracking-[0.18em] text-red-300">Picks</p>
+                    <div className="mt-2 flex flex-col gap-2">
+                      {message.recommendations?.map((item) => (
+                        <p key={item} className="text-sm leading-6 text-white/90">
+                          {item}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* AI inline suggestions inside message */}
+                {message.role === 'assistant' && Boolean(message.suggestions?.length) && (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {message.suggestions?.map((item) => (
+                      <span
+                        key={item}
+                        className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1.5 text-[11px] font-semibold text-[var(--color-muted)]"
+                      >
+                        {item}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
             {isLoading && (
@@ -250,28 +294,31 @@ export default function FloatingAssistant() {
                 Thinking...
               </div>
             )}
+            <div ref={messagesEndRef} className="h-1 shrink-0" />
           </div>
 
+          {/* Input Form - Added shrink-0 and relative positioning to prevent it from hiding under chat */}
           <form
             onSubmit={(event) => {
               event.preventDefault();
               handleSend(input);
             }}
-            className="border-t border-[var(--color-border)] bg-[rgba(10,10,12,0.98)] px-4 py-4"
+            className="relative z-10 shrink-0 border-t border-[var(--color-border)] bg-[rgba(10,10,12,0.98)] px-4 py-4"
           >
-            <div className="flex items-end gap-2 sm:gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
               <input
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
                 disabled={isLoading}
                 placeholder="Ask about titles, plans, or navigation..."
-                className="input-shell flex-1 !border-white/10 !bg-[#101014]"
+                className="input-shell min-w-0 flex-1 !border-white/10 !bg-[#101014]"
               />
-              <button type="submit" disabled={isLoading} className="primary-button shrink-0">
+              <button type="submit" disabled={isLoading} className="primary-button shrink-0 !px-5 !py-3">
                 Send
               </button>
             </div>
           </form>
+          
         </div>
       ) : (
         <button

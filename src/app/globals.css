@@ -196,6 +196,26 @@ body {
   display: none;
 }
 
+.assistant-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+.assistant-scrollbar::-webkit-scrollbar {
+  width: 10px;
+}
+
+.assistant-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.assistant-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
 .hero-backdrop {
   background-position: 68% top;
 }
