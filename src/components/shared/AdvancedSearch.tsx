@@ -33,7 +33,7 @@ function AdvancedSearchContent() {
     if (sortBy) params.append('sort', sortBy);
 
     setIsOpen(false);
-    router.push(`/search?${params.toString()}`);
+    router.push(`/explore?${params.toString()}`);
   };
 
   const handleSearch = (event: React.FormEvent) => {
@@ -51,46 +51,47 @@ function AdvancedSearchContent() {
   };
 
   return (
-    <div className="relative w-full max-w-2xl">
+    // Added max-w-[500px] and mr-4 or mx-auto depending on your flex layout so it doesn't stretch infinitely
+    <div className="relative w-full max-w-[450px] md:max-w-[500px]">
       <form onSubmit={handleSearch} className="relative flex items-center">
-        {/* Main Search Input */}
+        {/* Main Search Input - Adjusted height from h-14 to h-12 for better navbar fit */}
         <input
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Titles, people, genres..."
-          className="w-full bg-[#111]/80 border border-white/20 text-white placeholder-gray-400 px-4 py-2.5 rounded-full focus:outline-none focus:border-red-600 focus:bg-[#111] transition-all backdrop-blur-md pr-24"
+          className="h-12 w-full rounded-[22px] border border-white/12 bg-[#101010] px-4 pr-24 text-sm text-white shadow-[0_18px_50px_rgba(0,0,0,0.35)] outline-none transition-all placeholder:text-gray-500 focus:border-red-500/45 focus:bg-[#151515] focus:shadow-[0_0_0_4px_rgba(229,9,20,0.18)]"
         />
 
-        {/* Filter Toggle Button */}
+        {/* Filter Toggle Button - Adjusted size and position */}
         <button
           type="button"
           onClick={() => setIsOpen(!isOpen)}
-          className={`absolute right-12 p-1.5 rounded-full transition-colors ${isOpen ? 'bg-red-600 text-white shadow-[0_0_10px_rgba(229,9,20,0.5)]' : 'text-gray-400 hover:text-white'}`}
+          className={`absolute right-12 flex h-8 w-8 items-center justify-center rounded-full border transition-colors ${isOpen ? 'border-red-500/50 bg-red-600 text-white shadow-[0_0_14px_rgba(229,9,20,0.45)]' : 'border-white/10 bg-[#161616] text-gray-300 hover:border-white/20 hover:text-white'}`}
           title="Advanced Filters"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
           </svg>
         </button>
 
-        {/* Search Submit Button */}
+        {/* Search Submit Button - Adjusted size and position */}
         <button
           type="submit"
-          className="absolute right-2 bg-red-600 hover:bg-red-700 p-1.5 rounded-full text-white transition-colors"
+          className="absolute right-2 flex h-8 w-8 items-center justify-center rounded-full bg-red-600 text-white transition-colors hover:bg-red-700"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
         </button>
       </form>
 
-      {/* Floating Glassy Filter Panel (Works perfectly on both Mobile and Desktop) */}
+      {/* Floating Glassy Filter Panel */}
       {isOpen && (
-        <div className="absolute top-full left-0 w-full mt-3 h-[75vh] md:h-auto md:max-h-[85vh] md:left-auto md:right-0 md:w-[600px] bg-[#0a0a0a]/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-[0_15px_50px_rgba(0,0,0,0.9)] z-[100] flex flex-col overflow-hidden animate-in fade-in slide-in-from-top-4 duration-200">
+        <div className="absolute left-0 top-full z-[140] mt-3 flex h-[75vh] w-full flex-col overflow-hidden rounded-[30px] border border-white/12 bg-[#111111]/98 shadow-[0_32px_90px_rgba(0,0,0,0.68)] backdrop-blur-2xl md:left-auto md:right-0 md:h-auto md:max-h-[85vh] md:w-[600px] md:max-w-[calc(100vw-2rem)] animate-in fade-in slide-in-from-top-4 duration-200">
           
           {/* Mobile Header */}
-          <div className="flex justify-between items-center p-4 border-b border-white/10 md:hidden bg-[#111]">
+          <div className="flex items-center justify-between border-b border-white/10 bg-[#151515] p-4 md:hidden">
             <h3 className="text-lg font-bold text-white">Advanced Filters</h3>
             <button 
               type="button" 
@@ -103,11 +104,11 @@ function AdvancedSearchContent() {
 
           {/* Scrollable Content Area */}
           <div className="flex-1 overflow-y-auto p-5 md:p-6 custom-scrollbar">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2 md:gap-6">
               {/* Genre */}
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Genre</label>
-                <select value={genre} onChange={(e) => setGenre(e.target.value)} className="w-full bg-[#1a1a1a] border border-white/10 text-white rounded-lg px-3 py-3 md:py-2 focus:border-red-500 focus:outline-none appearance-none">
+                <select value={genre} onChange={(e) => setGenre(e.target.value)} className="w-full rounded-xl border border-white/10 bg-[#1a1a1a] px-3 py-2 text-sm text-white outline-none focus:border-red-500/50 appearance-none">
                   <option value="">All Genres</option>
                   <option value="Action">Action</option>
                   <option value="Comedy">Comedy</option>
@@ -121,7 +122,7 @@ function AdvancedSearchContent() {
               {/* Platform */}
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Platform</label>
-                <select value={platform} onChange={(e) => setPlatform(e.target.value)} className="w-full bg-[#1a1a1a] border border-white/10 text-white rounded-lg px-3 py-3 md:py-2 focus:border-red-500 focus:outline-none appearance-none">
+                <select value={platform} onChange={(e) => setPlatform(e.target.value)} className="w-full rounded-xl border border-white/10 bg-[#1a1a1a] px-3 py-2 text-sm text-white outline-none focus:border-red-500/50 appearance-none">
                   <option value="">Any Platform</option>
                   <option value="Netflix">Netflix</option>
                   <option value="Amazon Prime">Amazon Prime</option>
@@ -133,7 +134,7 @@ function AdvancedSearchContent() {
               {/* Release Year */}
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Release Year</label>
-                <select value={year} onChange={(e) => setYear(e.target.value)} className="w-full bg-[#1a1a1a] border border-white/10 text-white rounded-lg px-3 py-3 md:py-2 focus:border-red-500 focus:outline-none appearance-none">
+                <select value={year} onChange={(e) => setYear(e.target.value)} className="w-full rounded-xl border border-white/10 bg-[#1a1a1a] px-3 py-2 text-sm text-white outline-none focus:border-red-500/50 appearance-none">
                   <option value="">Any Time</option>
                   <option value="2024">2024</option>
                   <option value="2023">2023</option>
@@ -145,23 +146,23 @@ function AdvancedSearchContent() {
 
               {/* Minimum Rating */}
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex justify-between">
+                <label className="flex justify-between text-xs font-semibold uppercase tracking-wider text-gray-400">
                   <span>Min Rating (IMDb)</span>
-                  <span className="text-red-500 font-bold">{rating ? `${rating}+ Stars` : 'Any'}</span>
+                  <span className="font-bold text-red-500">{rating ? `${rating}+ Stars` : 'Any'}</span>
                 </label>
                 <input 
                   type="range" min="0" max="10" step="0.5" 
                   value={rating || 0} 
                   onChange={(e) => setRating(e.target.value)}
-                  className="w-full accent-red-600 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer mt-2"
+                  className="mt-2 h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-700 accent-red-600"
                 />
               </div>
             </div>
 
-            <hr className="border-white/10 my-6" />
+            <hr className="my-6 border-white/10" />
 
             {/* Sort By */}
-            <div className="space-y-3 mb-2">
+            <div className="mb-2 space-y-3">
               <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Sort By</label>
               <div className="flex flex-wrap gap-2 md:gap-3">
                 {[
@@ -174,7 +175,7 @@ function AdvancedSearchContent() {
                     key={opt.id}
                     type="button"
                     onClick={() => setSortBy(opt.id)}
-                    className={`px-3 py-2 md:px-4 rounded-full text-sm font-medium transition-all flex-grow sm:flex-grow-0 text-center ${sortBy === opt.id ? 'bg-red-600 text-white shadow-[0_0_15px_rgba(229,9,20,0.4)]' : 'bg-white/5 text-gray-300 hover:bg-white/10 border border-white/5'}`}
+                    className={`flex-grow rounded-full px-3 py-2 text-center text-sm font-medium transition-all sm:flex-grow-0 md:px-4 ${sortBy === opt.id ? 'bg-red-600 text-white shadow-[0_0_15px_rgba(229,9,20,0.4)]' : 'border border-white/5 bg-white/5 text-gray-300 hover:bg-white/10'}`}
                   >
                     {opt.label}
                   </button>
@@ -183,21 +184,21 @@ function AdvancedSearchContent() {
             </div>
           </div>
 
-          {/* Action Buttons (Sticky at bottom) */}
-          <div className="p-4 md:p-5 border-t border-white/10 bg-[#111] md:bg-transparent flex gap-3 justify-end mt-auto shrink-0">
+          {/* Action Buttons */}
+          <div className="mt-auto flex shrink-0 gap-3 border-t border-white/10 bg-[#151515] p-4 md:p-5">
             <button 
               type="button" 
               onClick={clearFilters} 
-              className="flex-1 md:flex-none px-5 py-2.5 md:py-2 rounded-lg text-sm font-bold text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 transition-colors"
+              className="flex-1 rounded-2xl border border-white/12 bg-[#1b1b1b] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#232323] md:flex-none"
             >
               Clear
             </button>
             <button 
               type="button" 
               onClick={submitSearch} 
-              className="flex-[2] md:flex-none px-6 py-2.5 md:py-2 rounded-lg text-sm font-bold bg-red-600 hover:bg-red-700 text-white transition-colors shadow-lg"
+              className="flex-1 rounded-2xl bg-red-600 px-6 py-3 text-sm font-semibold text-white shadow-[0_0_22px_rgba(229,9,20,0.24)] transition-colors hover:bg-red-700 md:flex-none"
             >
-              Apply & Search
+              Apply & Explore
             </button>
           </div>
         </div>
@@ -207,7 +208,7 @@ function AdvancedSearchContent() {
 }
 
 function AdvancedSearchFallback() {
-  return <div className="h-11 w-full rounded-full bg-white/10 animate-pulse"></div>;
+  return <div className="h-12 w-full max-w-[450px] md:max-w-[500px] rounded-[22px] bg-white/10 animate-pulse"></div>;
 }
 
 export default function AdvancedSearch() {

@@ -61,6 +61,15 @@ interface SimilarMedia {
   genre: string;
 }
 
+interface AiReviewSummary {
+  source: 'groq' | 'fallback';
+  summary: string;
+  sentiment: string;
+  highlights: string[];
+  reviewCount: number;
+  averageRating: number;
+}
+
 function getYouTubeId(url: string) {
   if (!url) {
     return null;
@@ -84,8 +93,10 @@ export default function MovieDetails() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [similarMovies, setSimilarMovies] = useState<SimilarMedia[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSummaryLoading, setIsSummaryLoading] = useState(false);
   const [hasPurchased, setHasPurchased] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [reviewSummary, setReviewSummary] = useState<AiReviewSummary | null>(null);
   const { user, token, isHydrated, updateUser, logout } = useAuth();
 
   const [rating, setRating] = useState(10);
@@ -105,6 +116,7 @@ export default function MovieDetails() {
       setIsLoading(true);
       setIsPlaying(false);
       setHasPurchased(false);
+      setReviewSummary(null);
 
       try {
         if (token) {
@@ -136,6 +148,20 @@ export default function MovieDetails() {
           genre: item.genre?.[0] || 'Unknown',
         }));
         setSimilarMovies(formattedSimilar);
+
+        if (loadedMedia.id) {
+          setIsSummaryLoading(true);
+          api.get(`/ai/review-summary/${loadedMedia.id}`)
+            .then((summaryResponse) => {
+              setReviewSummary(summaryResponse.data as AiReviewSummary);
+            })
+            .catch(() => {
+              setReviewSummary(null);
+            })
+            .finally(() => {
+              setIsSummaryLoading(false);
+            });
+        }
 
         if (token && loadedMedia.id) {
           try {
@@ -211,6 +237,26 @@ export default function MovieDetails() {
       toast.error(error.response?.data?.message || 'Failed to submit review.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleShare = async () => {
+    const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
+    const shareData = {
+      title: movie?.title || 'CineTube title',
+      text: `Check out ${movie?.title || 'this title'} on CineTube.`,
+      url: shareUrl,
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(shareUrl);
+        toast.success('Link copied to clipboard');
+      }
+    } catch (error) {
+      toast.error('Could not share this title right now.');
     }
   };
 
@@ -481,6 +527,16 @@ export default function MovieDetails() {
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
                 Add to Watchlist
               </button>
+
+              <button
+                onClick={handleShare}
+                className="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-white px-6 py-4 rounded-xl font-bold transition-all flex items-center justify-center gap-2 backdrop-blur-sm"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C9.044 12.546 9.85 12 10.75 12c.9 0 1.706.546 2.066 1.342m-4.132 0a2.25 2.25 0 000 2.316m4.132-2.316a2.25 2.25 0 010 2.316M8.25 9A2.25 2.25 0 1112.75 9a2.25 2.25 0 01-4.5 0zM15 15.75a2.25 2.25 0 100-4.5 2.25 2.25 0 000 4.5z" />
+                </svg>
+                Share Title
+              </button>
             </div>
           </div>
         </div>
@@ -559,6 +615,45 @@ export default function MovieDetails() {
           </div>
 
           <div className="lg:col-span-2 space-y-6">
+            <div className="bg-[#111]/80 backdrop-blur-md p-6 md:p-8 rounded-2xl border border-white/10">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.24em] text-red-400">AI Review Snapshot</p>
+                  <h3 className="mt-3 text-2xl font-bold text-white">Audience sentiment in one glance</h3>
+                </div>
+                {reviewSummary && (
+                  <span className={`rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.22em] ${
+                    reviewSummary.sentiment === 'positive'
+                      ? 'bg-green-500/15 text-green-400 border border-green-500/25'
+                      : reviewSummary.sentiment === 'mixed'
+                        ? 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/25'
+                        : 'bg-red-500/15 text-red-400 border border-red-500/25'
+                  }`}>
+                    {reviewSummary.sentiment}
+                  </span>
+                )}
+              </div>
+
+              {isSummaryLoading ? (
+                <div className="mt-6 text-sm text-gray-400">Generating summary...</div>
+              ) : reviewSummary ? (
+                <>
+                  <p className="mt-5 text-base leading-7 text-gray-300">{reviewSummary.summary}</p>
+                  <div className="mt-5 grid gap-3 md:grid-cols-3">
+                    {reviewSummary.highlights.map((item) => (
+                      <div key={item} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-gray-300">
+                        {item}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <p className="mt-5 text-sm leading-7 text-gray-400">
+                  A review snapshot will appear here once there are enough approved reviews to summarize.
+                </p>
+              )}
+            </div>
+
             <div className="flex items-center justify-between mb-8 border-b border-white/10 pb-4">
               <h3 className="text-3xl font-bold">Audience Reviews</h3>
               <span className="bg-white/10 text-white px-4 py-1.5 rounded-full text-sm font-bold border border-white/5">

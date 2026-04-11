@@ -128,7 +128,7 @@ function MoviesContent() {
       </div>
 
       {isLoading ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {[...Array(10)].map((_, index) => (
             <div key={index} className="animate-pulse bg-[#111] rounded-xl aspect-[2/3] border border-white/5"></div>
           ))}
@@ -142,7 +142,7 @@ function MoviesContent() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {movies.map((movie) => (
               <MovieCard
                 key={movie.id}
@@ -153,6 +153,7 @@ function MoviesContent() {
                 rating={Number(movie.averageRating) || 0}
                 year={movie.releaseYear}
                 genre={movie.genre[0] || "Unknown"}
+                mediaType="MOVIE"
               />
             ))}
           </div>

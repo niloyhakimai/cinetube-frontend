@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useAuth } from '@/context/AuthContext';
 
 const plans = [
   {
@@ -37,21 +37,9 @@ const plans = [
 ];
 
 export default function Pricing() {
-  const [user, setUser] = useState<any>(null);
-  const [mounted, setMounted] = useState(false);
+  const { user, isHydrated } = useAuth();
 
-  useEffect(() => {
-    setMounted(true);
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-  }, []);
-
-  // Hydration error 
-  if (!mounted) return null;
-
-
+  if (!isHydrated) return null;
   if (user && user.subscriptionStatus === 'ACTIVE') {
     return null; 
   }
@@ -60,14 +48,14 @@ export default function Pricing() {
     <section id="pricing" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
       <div className="text-center max-w-3xl mx-auto mb-16">
         <h2 className="text-3xl md:text-5xl font-bold text-white mb-4">Choose Your Plan</h2>
-        <p className="text-gray-400 text-lg">
+        <p className="text-[var(--color-muted)] text-lg">
           Unlock the full CineTube experience. Upgrade to Premium for ad-free streaming and exclusive 4K content.
         </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {plans.map((plan) => (
-          <div key={plan.name} className={`relative flex flex-col p-8 rounded-2xl backdrop-blur-xl border ${plan.isPopular ? 'bg-red-950/20 border-red-500/50 scale-105 z-10' : 'bg-[#111] border-white/10'} transition-transform duration-300 hover:scale-105`}>
+          <div key={plan.name} className={`relative flex flex-col p-8 rounded-3xl backdrop-blur-xl border ${plan.isPopular ? 'bg-red-950/20 border-red-500/50 scale-[1.02] z-10 shadow-[0_0_30px_rgba(229,9,20,0.16)]' : 'bg-[var(--color-surface)] border-white/10'} transition-transform duration-300 hover:scale-[1.02]`}>
             
             {plan.isPopular && (
               <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">
@@ -92,7 +80,7 @@ export default function Pricing() {
 
             <Link 
               href={user ? `/subscribe/${plan.planId}` : '/login'} 
-              className={`w-full py-3 rounded-lg font-bold text-center transition-all ${plan.buttonClasses}`}
+              className={`w-full py-3 rounded-2xl font-bold text-center transition-all ${plan.buttonClasses}`}
             >
               {plan.buttonText}
             </Link>

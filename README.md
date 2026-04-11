@@ -1,160 +1,94 @@
-# 🎬 CineTube - Frontend (User & Admin Portal)
+# CineTube Frontend
 
-CineTube is a premium movie and TV series streaming platform. This repository contains the **Frontend** application built with **Next.js (App Router)**, delivering a seamless Netflix-style experience for browsing, streaming, subscriptions, and community interaction.
+Frontend application for CineTube built with Next.js App Router. It delivers the public streaming-style experience, auth screens, profile and watchlist flows, admin dashboard, discovery pages, and the floating AI assistant UI.
 
----
+## Live
 
-## 🚀 Live Demo
+- App: `https://cinetube-self.vercel.app`
+- Backend API: `https://cinetube-backend.onrender.com/api`
 
-- 🌐 **Live App:** [cinetube-self.vercel.app](https://cinetube-self.vercel.app)
-- 🔗 **Backend API:** [cinetube-backend](https://github.com/niloyhakimai/cinetube-backend) 
-- 🎥 **Project Overview Video:** [![Watch Video](./thumbnail.png)](https://drive.google.com/file/d/1h4lo7pVW4JijYmOeI3oFn3Ce3s1gjvhT/view)
+## Core Features
 
----
+- Responsive homepage with trending, top-rated, newly added, and AI picks
+- Advanced search and explore page with filters
+- Movie and series detail pages
+- Watchlist, purchase history, and subscription-aware profile page
+- Login, registration, Google sign-in, forgot/reset password flows
+- Admin dashboard UI for review moderation and analytics
+- Static support pages: About, Contact, FAQ, Privacy, Terms, Blog
+- Floating AI assistant with Groq-backed responses and local fallback UX
 
-## 🔐 Admin Credentials (Testing)
+## Demo Credentials
 
-- **Email:** admin@cinetube.com  
-- **Password:** Admin123!  
+Frontend login currently exposes quick demo buttons for `USER` and `ADMIN`, while the backend also supports `MODERATOR` and `CURATOR`.
 
----
+| Role | Email | Password |
+| --- | --- | --- |
+| User | `demo-user@cinetube.com` | `User123!` |
+| Admin | `demo-admin@cinetube.com` | `Admin123!` |
+| Moderator | `demo-moderator@cinetube.com` | `Moderator123!` |
+| Curator | `demo-curator@cinetube.com` | `Curator123!` |
 
-## ✨ Key Features
+## Tech Stack
 
-### 🎥 Dynamic Media Catalog
-- Browse trending, top-rated, and newly added content  
-- Real-time synchronization with TMDB API  
+| Category | Technology |
+| --- | --- |
+| Framework | Next.js 16, React 19 |
+| Styling | Tailwind CSS 4 |
+| API Client | Axios |
+| Payments | Stripe Elements |
+| Auth UX | Google OAuth, local auth screens |
+| UI Feedback | React Hot Toast |
 
-### 💳 Premium Streaming & Payments
-- Rent movies (48 hours access)  
-- Buy movies (lifetime access)  
-- Subscribe (Monthly / Yearly plans)  
-- Integrated with **Stripe** for secure payments  
-
-### 🌐 Interactive Community
-- Rate movies (1–10 scale)  
-- Write reviews with spoiler tags  
-- Nested comment system  
-
-### 👤 User Dashboard
-- Manage watchlist  
-- View purchase history  
-- Track active subscriptions  
-
-### 🛠️ Admin Dashboard
-- Moderate user reviews  
-- Manage media overrides  
-- View platform analytics  
-
----
-
-## 🧰 Tech Stack
-
-| Category              | Technology |
-|----------------------|-----------|
-| Framework            | Next.js (App Router), React |
-| Styling              | Tailwind CSS |
-| State & API Handling | Axios, React Hooks |
-| Payments             | Stripe.js, React Stripe Elements |
-| UI & Notifications   | React Hot Toast |
-
----
-
-## ⚙️ Local Setup Instructions
-
-### 1️⃣ Clone Repository
+## Scripts
 
 ```bash
-git clone [Your Frontend Repo URL]
-cd cinetube-frontend
+npm run dev
+npm run build
+npm run start
+npm run lint
 ```
 
-### 2️⃣ Install Dependencies
+## Local Setup
+
+### 1. Install dependencies
 
 ```bash
 npm install
 ```
 
-### 3️⃣ Environment Variables
-
-Create a `.env.local` file in the root directory and add:
+### 2. Create `.env.local`
 
 ```env
 NEXT_PUBLIC_API_URL="http://localhost:5000/api"
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="your_stripe_publishable_key"
+NEXT_PUBLIC_GOOGLE_CLIENT_ID="your_google_client_id"
 ```
 
----
-
-### 4️⃣ Run Development Server
+### 3. Start development server
 
 ```bash
 npm run dev
 ```
 
-Then open:
+Open `http://localhost:3000`.
 
-👉 http://localhost:3000
+## Important Notes
 
----
+- Do not put Groq, Stripe secret, TMDB, or JWT secrets in the frontend
+- If production API URL changes, redeploy the frontend after updating `NEXT_PUBLIC_API_URL`
+- The AI assistant UI depends on the backend `/api/ai/*` routes
 
-## 📦 Project Structure (Overview)
+## Project Structure
 
+```text
+src/app          app router pages and layouts
+src/components   shared UI, cards, home, AI assistant
+src/content      static content and nav definitions
+src/context      auth session store
+src/lib          axios client and helpers
 ```
-/app          → App Router pages & layouts  
-/components   → Reusable UI components  
-/lib          → API & utility functions  
-/hooks        → Custom React hooks  
-/styles       → Global styles  
-```
 
----
+## License
 
-## 🔒 Security Notes
-
-- Never expose secret keys in frontend  
-- Use only `NEXT_PUBLIC_` variables on client side  
-- Stripe secret key must remain in backend  
-
----
-
-## 📈 Future Improvements
-
-- 🔍 Advanced search & filtering  
-- 📱 Mobile app (React Native)  
-- 🎯 AI-based recommendations  
-- 🌍 Multi-language support  
-
----
-
-## 🤝 Contribution
-
-Contributions are welcome!
-
-1. Fork the repository  
-2. Create a new branch  
-3. Commit your changes  
-4. Open a Pull Request  
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License.
-
----
-
-## 💡 Developer Note
-
-> This project demonstrates full-stack architecture with real-world features like payments, authentication, admin control, and scalable UI patterns.
-
----
-
-## 👨‍💻 Author
-
-**Niloy Hakim**  
-Building scalable apps with Full Stack 🚀
-
----
-
-⭐ If you like this project, don’t forget to star the repo!
+MIT

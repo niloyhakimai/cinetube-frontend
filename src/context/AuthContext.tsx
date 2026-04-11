@@ -12,6 +12,9 @@ export interface AuthUser {
   name: string;
   email: string;
   role: string;
+  avatarUrl?: string | null;
+  favoriteGenres?: string[];
+  communicationOptIn?: boolean;
   subscriptionPlan?: string;
   subscriptionStatus?: string;
   subscriptionEndDate?: string | null;

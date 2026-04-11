@@ -4,6 +4,7 @@ import "./globals.css";
 import Navbar from "@/components/shared/Navbar";
 import Footer from "@/components/shared/Footer";
 import { AuthProvider } from "@/context/AuthContext";
+import FloatingAssistant from "@/components/ai/FloatingAssistant";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -18,8 +19,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${inter.className} bg-[#050505] text-white min-h-screen flex flex-col`}>
+    <html lang="en" data-scroll-behavior="smooth">
+      <body className={`${inter.className} min-h-screen flex flex-col bg-[var(--color-background)] text-[var(--color-foreground)]`}>
         <AuthProvider>
           <Navbar />
           {/* Added padding-top to prevent content from hiding behind the fixed navbar */}
@@ -27,6 +28,7 @@ export default function RootLayout({
             {children}
           </main>
           <Footer />
+          <FloatingAssistant />
         </AuthProvider>
       </body>
     </html>

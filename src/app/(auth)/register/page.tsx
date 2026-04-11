@@ -18,9 +18,24 @@ export default function Register() {
     password: '',
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [isDemoLoading, setIsDemoLoading] = useState<'USER' | 'ADMIN' | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleDemoLogin = async (role: 'USER' | 'ADMIN') => {
+    setIsDemoLoading(role);
+    try {
+      const response = await api.post('/auth/demo-login', { role });
+      login(response.data.token, response.data.user);
+      toast.success(`${role === 'ADMIN' ? 'Admin' : 'User'} demo ready!`);
+      router.push(role === 'ADMIN' ? '/admin' : '/');
+    } catch (error) {
+      toast.error('Could not start the demo session.');
+    } finally {
+      setIsDemoLoading(null);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -52,8 +67,27 @@ export default function Register() {
       
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
       
-      <div className="relative z-10 w-full max-w-md p-10 bg-black/70 border border-white/10 rounded-xl shadow-[0_0_40px_rgba(0,0,0,0.8)] mt-10">
+      <div className="relative z-10 w-full max-w-md p-10 bg-black/70 border border-white/10 rounded-3xl shadow-[0_0_40px_rgba(0,0,0,0.8)] mt-10">
         <h2 className="text-3xl font-bold text-white mb-8">Create Account</h2>
+
+        <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={() => handleDemoLogin('USER')}
+            disabled={Boolean(isDemoLoading)}
+            className="secondary-button !justify-center !rounded-2xl !px-4 !py-3 text-sm"
+          >
+            {isDemoLoading === 'USER' ? 'Starting User Demo...' : 'Demo User'}
+          </button>
+          <button
+            type="button"
+            onClick={() => handleDemoLogin('ADMIN')}
+            disabled={Boolean(isDemoLoading)}
+            className="primary-button !justify-center !rounded-2xl !px-4 !py-3 text-sm"
+          >
+            {isDemoLoading === 'ADMIN' ? 'Starting Admin Demo...' : 'Demo Admin'}
+          </button>
+        </div>
         
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
@@ -63,7 +97,7 @@ export default function Register() {
               value={formData.name}
               onChange={handleChange}
               placeholder="Full Name" 
-              className="w-full bg-[#333] text-white px-4 py-3 rounded focus:outline-none focus:ring-2 focus:ring-red-600 transition-all placeholder-gray-500"
+              className="input-shell"
               required
             />
           </div>
@@ -74,7 +108,7 @@ export default function Register() {
               value={formData.email}
               onChange={handleChange}
               placeholder="Email Address" 
-              className="w-full bg-[#333] text-white px-4 py-3 rounded focus:outline-none focus:ring-2 focus:ring-red-600 transition-all placeholder-gray-500"
+              className="input-shell"
               required
             />
           </div>
@@ -85,7 +119,7 @@ export default function Register() {
               value={formData.password}
               onChange={handleChange}
               placeholder="Password" 
-              className="w-full bg-[#333] text-white px-4 py-3 rounded focus:outline-none focus:ring-2 focus:ring-red-600 transition-all placeholder-gray-500"
+              className="input-shell"
               required
               minLength={6}
             />
@@ -94,7 +128,7 @@ export default function Register() {
           <button 
             type="submit" 
             disabled={isLoading}
-            className="w-full bg-red-600 hover:bg-red-700 disabled:bg-red-800 text-white font-bold py-3 rounded transition-colors mt-4 shadow-[0_0_15px_rgba(229,9,20,0.4)] flex justify-center items-center"
+            className="primary-button mt-4 w-full justify-center rounded-2xl disabled:opacity-60"
           >
             {isLoading ? 'Creating...' : 'Sign Up'}
           </button>

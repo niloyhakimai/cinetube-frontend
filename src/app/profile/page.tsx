@@ -7,6 +7,7 @@ import Link from 'next/link';
 import toast, { Toaster } from 'react-hot-toast';
 import { api } from '@/lib/axios';
 import { useAuth } from '@/context/AuthContext';
+import { commonGenres } from '@/content/site';
 
 interface ReviewActivity {
   id: string;
@@ -60,7 +61,14 @@ export default function UserProfile() {
   const [editRating, setEditRating] = useState<number>(10);
   const [editContent, setEditContent] = useState<string>('');
   const [isCanceling, setIsCanceling] = useState(false);
-  const [activeTab, setActiveTab] = useState<'activity' | 'purchases'>('activity');
+  const [activeTab, setActiveTab] = useState<'activity' | 'purchases' | 'settings'>('activity');
+  const [profileForm, setProfileForm] = useState({
+    name: '',
+    avatarUrl: '',
+    favoriteGenres: [] as string[],
+    communicationOptIn: true,
+  });
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
   const userId = user?.id;
 
   useEffect(() => {
@@ -83,6 +91,12 @@ export default function UserProfile() {
         ]);
 
         updateUser(userRes.data.user);
+        setProfileForm({
+          name: userRes.data.user.name || '',
+          avatarUrl: userRes.data.user.avatarUrl || '',
+          favoriteGenres: userRes.data.user.favoriteGenres || [],
+          communicationOptIn: userRes.data.user.communicationOptIn ?? true,
+        });
         setWatchlistCount(watchlistRes.data.watchlist.length);
         setReviews(reviewsRes.data.reviews);
         setPaymentHistory(purchasesRes.data.history || []);
@@ -173,6 +187,42 @@ export default function UserProfile() {
     setTimeout(() => router.push('/'), 1000);
   };
 
+  const toggleGenre = (genre: string) => {
+    setProfileForm((current) => {
+      const exists = current.favoriteGenres.includes(genre);
+
+      if (exists) {
+        return {
+          ...current,
+          favoriteGenres: current.favoriteGenres.filter((entry) => entry !== genre),
+        };
+      }
+
+      if (current.favoriteGenres.length >= 6) {
+        toast.error('Choose up to 6 genres.');
+        return current;
+      }
+
+      return {
+        ...current,
+        favoriteGenres: [...current.favoriteGenres, genre],
+      };
+    });
+  };
+
+  const handleProfileSave = async () => {
+    setIsSavingProfile(true);
+    try {
+      const response = await api.patch('/auth/me', profileForm);
+      updateUser(response.data.user);
+      toast.success('Profile updated successfully');
+    } catch (error) {
+      toast.error('Could not update profile');
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
   if (!isHydrated || isLoading || !user) {
     return (
       <div className="min-h-screen bg-[#050505] flex items-center justify-center">
@@ -198,8 +248,12 @@ export default function UserProfile() {
           <div className="h-40 bg-gradient-to-r from-red-900/40 to-black w-full absolute top-0 left-0"></div>
 
           <div className="relative pt-20 px-8 pb-8 flex flex-col sm:flex-row items-center sm:items-end gap-6">
-            <div className="w-32 h-32 rounded-full border-4 border-[#111] bg-red-600 flex items-center justify-center text-5xl font-extrabold shadow-xl z-10 shrink-0">
-              {user.name.charAt(0).toUpperCase()}
+            <div className="w-32 h-32 overflow-hidden rounded-full border-4 border-[#111] bg-red-600 flex items-center justify-center text-5xl font-extrabold shadow-xl z-10 shrink-0">
+              {user.avatarUrl ? (
+                <img src={user.avatarUrl} alt={user.name} className="h-full w-full object-cover" />
+              ) : (
+                user.name.charAt(0).toUpperCase()
+              )}
             </div>
 
             <div className="text-center sm:text-left grow mb-2">
@@ -274,6 +328,12 @@ export default function UserProfile() {
                 className={`px-5 py-2 font-bold rounded-lg transition-all ${activeTab === 'purchases' ? 'bg-red-600 text-white shadow-[0_0_20px_rgba(229,9,20,0.3)]' : 'bg-[#111]/60 text-gray-400 hover:text-white border border-white/5'}`}
               >
                 Payment History
+              </button>
+              <button
+                onClick={() => setActiveTab('settings')}
+                className={`px-5 py-2 font-bold rounded-lg transition-all ${activeTab === 'settings' ? 'bg-red-600 text-white shadow-[0_0_20px_rgba(229,9,20,0.3)]' : 'bg-[#111]/60 text-gray-400 hover:text-white border border-white/5'}`}
+              >
+                Settings
               </button>
             </div>
 
@@ -481,6 +541,84 @@ export default function UserProfile() {
                     })}
                   </div>
                 )}
+              </div>
+            )}
+
+            {activeTab === 'settings' && (
+              <div className="bg-[#111]/60 backdrop-blur-md p-6 rounded-xl border border-white/5 animate-in fade-in duration-300 space-y-6">
+                <div>
+                  <h3 className="text-2xl font-bold text-white">Profile Settings</h3>
+                  <p className="mt-2 text-sm text-gray-400">
+                    Update your public profile basics and tune preference signals for better recommendations later.
+                  </p>
+                </div>
+
+                <div className="grid gap-5 md:grid-cols-2">
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-gray-400">Display Name</label>
+                    <input
+                      value={profileForm.name}
+                      onChange={(event) => setProfileForm((current) => ({ ...current, name: event.target.value }))}
+                      className="input-shell"
+                      placeholder="Your display name"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-gray-400">Avatar URL</label>
+                    <input
+                      value={profileForm.avatarUrl}
+                      onChange={(event) => setProfileForm((current) => ({ ...current, avatarUrl: event.target.value }))}
+                      className="input-shell"
+                      placeholder="https://example.com/avatar.jpg"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-3 block text-sm font-medium text-gray-400">Favorite Genres</label>
+                  <div className="flex flex-wrap gap-2">
+                    {commonGenres.map((genre) => {
+                      const isActive = profileForm.favoriteGenres.includes(genre);
+
+                      return (
+                        <button
+                          key={genre}
+                          type="button"
+                          onClick={() => toggleGenre(genre)}
+                          className={`rounded-full px-3 py-2 text-sm font-semibold transition-colors ${
+                            isActive
+                              ? 'bg-red-600 text-white'
+                              : 'border border-white/10 bg-white/5 text-gray-300 hover:bg-white/10'
+                          }`}
+                        >
+                          {genre}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-sm text-gray-300">
+                  <input
+                    type="checkbox"
+                    checked={profileForm.communicationOptIn}
+                    onChange={(event) => setProfileForm((current) => ({ ...current, communicationOptIn: event.target.checked }))}
+                    className="h-4 w-4 accent-red-600"
+                  />
+                  Keep me informed about new releases, plan updates, and product highlights.
+                </label>
+
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={handleProfileSave}
+                    disabled={isSavingProfile}
+                    className="primary-button disabled:opacity-60"
+                  >
+                    {isSavingProfile ? 'Saving...' : 'Save Settings'}
+                  </button>
+                </div>
               </div>
             )}
           </div>

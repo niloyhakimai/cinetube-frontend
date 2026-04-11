@@ -1,201 +1,300 @@
 "use client";
 
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-import AdvancedSearch from './AdvancedSearch'; 
+import AdvancedSearch from './AdvancedSearch';
 import { useAuth } from '@/context/AuthContext';
+import { discoveryLinks, primaryNavLinks } from '@/content/site';
 
 function SearchFallback() {
   return <div className="h-11 w-full max-w-sm rounded-full bg-white/10 animate-pulse"></div>;
 }
 
+function isActiveNavLink(pathname: string, href: string) {
+  if (href.startsWith('/#')) {
+    return false;
+  }
+
+  if (href === '/') {
+    return pathname === '/';
+  }
+
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 export default function Navbar() {
-  const [isOpen, setIsOpen] = useState(false);
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const { user, logout, isHydrated } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+  const { user, logout, isHydrated } = useAuth();
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isDiscoverOpen, setIsDiscoverOpen] = useState(false);
+  const navRef = useRef<HTMLElement | null>(null);
+  const desktopCoreLinks = primaryNavLinks.filter((link) => !['/#pricing', '/about'].includes(link.href));
+  const desktopOverflowLinks = primaryNavLinks.filter((link) => ['/#pricing', '/about'].includes(link.href));
+
+  const closeMenus = () => {
+    setIsMobileOpen(false);
+    setIsSearchOpen(false);
+    setIsProfileOpen(false);
+    setIsDiscoverOpen(false);
+  };
 
   const handleLogout = () => {
     logout();
-    setIsProfileOpen(false);
-    setIsOpen(false);
+    closeMenus();
     toast.success('Logged out successfully!');
     router.push('/login');
   };
 
+  useEffect(() => {
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!navRef.current?.contains(event.target as Node)) {
+        closeMenus();
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        closeMenus();
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    window.addEventListener('keydown', handleEscape);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      window.removeEventListener('keydown', handleEscape);
+    };
+  }, []);
+
   return (
-    <nav className="fixed w-full z-50 top-0 bg-black/80 backdrop-blur-md border-b border-white/10 transition-all duration-300">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Added 'relative' class for proper positioning of the center items */}
-        <div className="flex justify-between items-center h-20 relative">
-          
-          {/* 1. Left Section (Logo) */}
-          <div className="flex-1 flex justify-start items-center">
-            <Link href="/" className="text-red-600 text-3xl font-extrabold tracking-widest uppercase shrink-0">
-              CineTube
-            </Link>
-          </div>
+    <nav ref={navRef} className="fixed inset-x-0 top-0 z-50 border-b border-[var(--color-border)] bg-black/80 backdrop-blur-xl">
+      <div className="mx-auto flex h-20 max-w-7xl items-center justify-between gap-2 px-4 sm:px-6 lg:px-8">
+        <div className="relative z-20 flex min-w-0 flex-1 items-center gap-3 md:flex-none lg:gap-4 xl:gap-5">
+          <Link href="/" className="shrink-0 leading-none text-[1.4rem] font-black uppercase tracking-[0.08em] text-red-500 sm:text-[1.5rem] sm:tracking-[0.1em] lg:text-[1.55rem] lg:tracking-[0.11em] xl:text-[1.7rem] xl:tracking-[0.12em] 2xl:text-[1.82rem] 2xl:tracking-[0.13em]">
+            CineTube
+          </Link>
 
-          {/* 2. Center Section (Navigation Links) - Shifted slightly left with reduced margin */}
-          <div className="hidden md:flex absolute left-[45%] transform -translate-x-1/2 space-x-6">
-            <Link href="/" className="text-gray-300 hover:text-white font-medium transition-colors">
-              Home
-            </Link>
-            <Link href="/movies" className="text-gray-300 hover:text-white font-medium transition-colors">
-              Movies
-            </Link>
-            <Link href="/series" className="text-gray-300 hover:text-white font-medium transition-colors">
-              Series
-            </Link>
-          </div>
-
-          {/* 3. Right Section (Search & Profile) */}
-          <div className="hidden md:flex flex-1 items-center justify-end space-x-6 min-w-0">
-            
-            {/* Advanced Search Component */}
-            <div className="w-full max-w-sm flex justify-end">
-              <Suspense fallback={<SearchFallback />}>
-                <AdvancedSearch />
-              </Suspense>
-            </div>
-
-            {/* Conditional Rendering based on Auth State */}
-            {!isHydrated ? (
-              <div className="h-10 w-24 shrink-0 rounded-md bg-white/10 animate-pulse"></div>
-            ) : user ? (
-              <div className="relative shrink-0">
-                <button 
-                  onClick={() => setIsProfileOpen(!isProfileOpen)}
-                  className="flex items-center justify-center w-10 h-10 rounded-full bg-red-600 text-white font-bold text-lg hover:ring-2 hover:ring-red-400 transition-all shadow-lg"
-                >
-                  {user.name.charAt(0).toUpperCase()}
-                </button>
-
-                {/* Profile Dropdown */}
-                {isProfileOpen && (
-                  <div className="absolute right-0 mt-3 w-48 bg-[#111] border border-white/10 rounded-md shadow-2xl py-1 backdrop-blur-xl z-50">
-                    <div className="px-4 py-3 border-b border-white/10">
-                      <p className="text-sm text-white font-medium truncate">{user.name}</p>
-                      <p className="text-xs text-gray-400 truncate">{user.email}</p>
-                    </div>
-                    <Link 
-                      href="/profile" 
-                      onClick={() => setIsProfileOpen(false)}
-                      className="block px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors border-b border-white/5 pb-3 mb-1"
-                    >
-                      My Profile
-                    </Link>
-                    {user.role === 'ADMIN' && (
-                      <Link 
-                        href="/admin" 
-                        onClick={() => setIsProfileOpen(false)}
-                        className="block px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors"
-                      >
-                        Admin Dashboard
-                      </Link>
-                    )}
-                    
-                    <Link 
-                      href="/watchlist" 
-                      onClick={() => setIsProfileOpen(false)}
-                      className="block px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors"
-                    >
-                      My Watchlist
-                    </Link>
-                    
-                    <button 
-                      onClick={handleLogout}
-                      className="block w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-white/5 transition-colors"
-                    >
-                      Sign Out
-                    </button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <Link 
-                href="/login" 
-                className="shrink-0 bg-red-600 hover:bg-red-700 text-white px-6 py-2.5 rounded-md font-semibold transition-all shadow-[0_0_15px_rgba(229,9,20,0.4)]"
+          <div className="hidden shrink-0 items-center gap-0.5 rounded-full border border-white/10 bg-[linear-gradient(180deg,rgba(18,18,20,0.96),rgba(10,10,12,0.94))] p-1.5 shadow-[0_20px_45px_rgba(0,0,0,0.32)] lg:flex">
+            {desktopCoreLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`whitespace-nowrap rounded-full px-2.5 py-2 text-[12px] font-semibold transition-all xl:px-3 xl:text-[13px] 2xl:px-4 2xl:text-sm ${
+                  isActiveNavLink(pathname, link.href)
+                    ? 'bg-red-600 text-white shadow-[0_0_18px_rgba(229,9,20,0.24)]'
+                    : 'text-[var(--color-muted)] hover:bg-white/[0.07] hover:text-white'
+                }`}
               >
-                Sign In
+                {link.label}
               </Link>
-            )}
-          </div>
+            ))}
 
-          {/* Mobile Menu & Search Buttons */}
-          <div className="md:hidden flex items-center space-x-4 shrink-0">
-            {/* Mobile Search Toggle */}
-            <button 
-              onClick={() => {
-                setIsSearchOpen(!isSearchOpen);
-                setIsOpen(false);
+            <div
+              className="relative z-50"
+              onMouseEnter={() => {
+                setIsDiscoverOpen(true);
+                setIsProfileOpen(false);
               }}
-              className="text-gray-300 hover:text-white transition-colors p-2"
+              onMouseLeave={() => setIsDiscoverOpen(false)}
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </button>
+              <button
+                type="button"
+                onClick={() => setIsDiscoverOpen((current) => !current)}
+                className={`flex min-w-[4.7rem] items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-2 text-[12px] font-semibold transition-all xl:min-w-[4.9rem] xl:px-3 xl:text-[13px] 2xl:min-w-[7.2rem] 2xl:px-4 2xl:text-sm ${
+                  isDiscoverOpen
+                    ? 'bg-white/10 text-white'
+                    : 'text-[var(--color-muted)] hover:bg-white/[0.07] hover:text-white'
+                }`}
+              >
+                <span className="hidden 2xl:inline">Discover</span>
+                <span className="inline 2xl:hidden">More</span>
+                <svg
+                  className={`h-4 w-4 shrink-0 transition-transform ${isDiscoverOpen ? 'rotate-180 text-white' : 'text-[var(--color-muted)]'}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
 
-            {/* Mobile Menu Toggle */}
-            <button 
-              onClick={() => {
-                setIsOpen(!isOpen);
-                setIsSearchOpen(false);
-              }} 
-              className="text-gray-300 hover:text-white focus:outline-none p-2"
-            >
-              <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                {isOpen ? (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                ) : (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                )}
-              </svg>
-            </button>
+              {isDiscoverOpen && (
+                <div className="absolute left-1/2 top-full z-[130] w-[360px] -translate-x-1/2 pt-4">
+                  <div className="overflow-hidden rounded-[28px] border border-white/12 bg-[linear-gradient(180deg,rgba(16,16,18,0.98),rgba(8,8,10,0.99))] p-3 shadow-[0_32px_90px_rgba(0,0,0,0.72)] backdrop-blur-2xl">
+                    {discoveryLinks.map((link) => (
+                      <Link
+                        key={link.href}
+                        href={link.href}
+                        onClick={closeMenus}
+                        className="block rounded-2xl px-4 py-3 transition-colors hover:bg-white/[0.07]"
+                      >
+                        <p className="font-bold text-white">{link.label}</p>
+                        <p className="mt-1 text-sm leading-6 text-[var(--color-muted)]">{link.description}</p>
+                      </Link>
+                    ))}
+
+                    <div className="2xl:hidden">
+                      <div className="mx-2 my-2 border-t border-white/10" />
+                      {desktopOverflowLinks.map((link) => (
+                        <Link
+                          key={link.href}
+                          href={link.href}
+                          onClick={closeMenus}
+                          className="block rounded-2xl px-4 py-3 transition-colors hover:bg-white/[0.07]"
+                        >
+                          <p className="font-bold text-white">{link.label}</p>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="hidden min-w-0 flex-1 items-center justify-end gap-2 md:flex lg:gap-3">
+          <div
+            className="relative z-10 w-full max-w-[170px] lg:max-w-[180px] xl:max-w-[220px] 2xl:max-w-[320px]"
+            onMouseEnter={() => setIsDiscoverOpen(false)}
+            onFocusCapture={() => setIsDiscoverOpen(false)}
+          >
+            <Suspense fallback={<SearchFallback />}>
+              <AdvancedSearch />
+            </Suspense>
           </div>
 
+          {!isHydrated ? (
+            <div className="h-10 w-24 rounded-full bg-white/10 animate-pulse"></div>
+          ) : user ? (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsProfileOpen((current) => !current);
+                  setIsDiscoverOpen(false);
+                }}
+                className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border border-red-500/35 bg-red-600 text-lg font-black text-white shadow-[0_0_24px_rgba(229,9,20,0.2)] transition-transform hover:scale-[1.02]"
+              >
+                {user.avatarUrl ? (
+                  <img src={user.avatarUrl} alt={user.name} className="h-full w-full object-cover" />
+                ) : (
+                  user.name.charAt(0).toUpperCase()
+                )}
+              </button>
+
+              {isProfileOpen && (
+                <div className="absolute right-0 top-full z-[140] mt-4 w-72 overflow-hidden rounded-[28px] border border-white/12 bg-[linear-gradient(180deg,rgba(16,16,18,0.99),rgba(7,7,9,0.99))] p-2 shadow-[0_34px_95px_rgba(0,0,0,0.74)] backdrop-blur-2xl">
+                  <div className="border-b border-[var(--color-border)] px-4 py-4">
+                    <p className="truncate font-bold text-white">{user.name}</p>
+                    <p className="truncate text-sm text-[var(--color-muted)]">{user.email}</p>
+                  </div>
+                  <Link href="/profile" onClick={closeMenus} className="mt-1 block rounded-2xl px-4 py-3 text-sm font-medium text-[var(--color-muted)] transition-colors hover:bg-white/[0.07] hover:text-white">
+                    My Profile
+                  </Link>
+                  <Link href="/watchlist" onClick={closeMenus} className="block rounded-2xl px-4 py-3 text-sm font-medium text-[var(--color-muted)] transition-colors hover:bg-white/[0.07] hover:text-white">
+                    My Watchlist
+                  </Link>
+                  {user.role !== 'USER' && (
+                    <Link href="/admin" onClick={closeMenus} className="block rounded-2xl px-4 py-3 text-sm font-medium text-[var(--color-muted)] transition-colors hover:bg-white/[0.07] hover:text-white">
+                      Dashboard
+                    </Link>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="mt-1 block w-full rounded-2xl px-4 py-3 text-left text-sm font-medium text-red-400 transition-colors hover:bg-red-500/10"
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <Link href="/login" className="primary-button shrink-0 whitespace-nowrap !px-5 !py-3 text-sm">
+              Sign In
+            </Link>
+          )}
+        </div>
+
+        <div className="ml-auto flex shrink-0 items-center justify-end gap-1.5 md:hidden">
+          <button
+            type="button"
+            onClick={() => {
+              setIsSearchOpen((current) => !current);
+              setIsMobileOpen(false);
+            }}
+            className="secondary-button !rounded-full !px-3 !py-2"
+          >
+            Search
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setIsMobileOpen((current) => !current);
+              setIsSearchOpen(false);
+            }}
+            className="secondary-button !rounded-full !px-3 !py-2"
+          >
+            Menu
+          </button>
         </div>
       </div>
 
-      {/* Mobile Search Bar Area (Contains AdvancedSearch) */}
       {isSearchOpen && (
-        <div className="md:hidden bg-[#0a0a0a] border-b border-white/10 backdrop-blur-xl px-4 py-3 w-full absolute top-20 left-0 shadow-xl">
+        <div className="border-t border-[var(--color-border)] bg-black/90 px-4 py-4 md:hidden">
           <Suspense fallback={<SearchFallback />}>
             <AdvancedSearch />
           </Suspense>
         </div>
       )}
 
-      {/* Mobile Menu Dropdown */}
-      {isOpen && (
-        <div className="md:hidden bg-[#0a0a0a] border-b border-white/10 backdrop-blur-xl absolute top-20 left-0 w-full min-h-screen">
-          <div className="px-4 pt-2 pb-6 space-y-2 flex flex-col shadow-2xl">
-            {user && (
-              <div className="px-3 py-3 border-b border-white/10 mb-2">
-                <p className="text-base font-medium text-white">{user.name}</p>
-                <p className="text-sm text-gray-400">{user.email}</p>
-              </div>
-            )}
-            
-            <Link href="/" onClick={() => setIsOpen(false)} className="block px-3 py-3 rounded-md text-base font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-colors">Home</Link>
-            <Link href="/movies" onClick={() => setIsOpen(false)} className="block px-3 py-3 rounded-md text-base font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-colors">Movies</Link>
-            <Link href="/series" onClick={() => setIsOpen(false)} className="block px-3 py-3 rounded-md text-base font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-colors">Series</Link>
-            
+      {isMobileOpen && (
+        <div className="border-t border-[var(--color-border)] bg-black/95 px-4 py-4 md:hidden">
+          <div className="space-y-2">
+            {primaryNavLinks.map((link) => (
+              <Link key={link.href} href={link.href} onClick={closeMenus} className="block rounded-2xl px-4 py-3 font-semibold text-[var(--color-muted)] transition-colors hover:bg-white/5 hover:text-white">
+                {link.label}
+              </Link>
+            ))}
+
+            <div className="surface-panel p-3">
+              <p className="px-2 pb-2 text-xs font-black uppercase tracking-[0.24em] text-red-400">Discover</p>
+              {discoveryLinks.map((link) => (
+                <Link key={link.href} href={link.href} onClick={closeMenus} className="block rounded-xl px-3 py-3 text-sm text-[var(--color-muted)] transition-colors hover:bg-white/5 hover:text-white">
+                  {link.label}
+                </Link>
+              ))}
+            </div>
+
             {user ? (
-              <>
-                {user.role === 'ADMIN' && (
-                  <Link href="/admin" onClick={() => setIsOpen(false)} className="block px-3 py-3 rounded-md text-base font-medium text-yellow-500 hover:bg-white/5 transition-colors">Admin Dashboard</Link>
+              <div className="surface-panel p-3">
+                <p className="px-2 pb-3 text-sm text-white">{user.name}</p>
+                <Link href="/profile" onClick={closeMenus} className="block rounded-xl px-3 py-3 text-sm text-[var(--color-muted)] transition-colors hover:bg-white/5 hover:text-white">
+                  My Profile
+                </Link>
+                <Link href="/watchlist" onClick={closeMenus} className="block rounded-xl px-3 py-3 text-sm text-[var(--color-muted)] transition-colors hover:bg-white/5 hover:text-white">
+                  My Watchlist
+                </Link>
+                {user.role !== 'USER' && (
+                  <Link href="/admin" onClick={closeMenus} className="block rounded-xl px-3 py-3 text-sm text-[var(--color-muted)] transition-colors hover:bg-white/5 hover:text-white">
+                    Dashboard
+                  </Link>
                 )}
-                <Link href="/profile" onClick={() => setIsOpen(false)} className="block px-3 py-3 rounded-md text-base font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-colors">My Profile</Link>
-                <Link href="/watchlist" onClick={() => setIsOpen(false)} className="block px-3 py-3 rounded-md text-base font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-colors">My Watchlist</Link>
-                <button onClick={handleLogout} className="block w-full text-left mt-4 bg-red-600/10 text-red-500 hover:bg-red-600/20 px-5 py-3 rounded-md font-semibold transition-all">Sign Out</button>
-              </>
+                <button type="button" onClick={handleLogout} className="mt-2 w-full rounded-xl bg-red-600 px-4 py-3 text-left font-semibold text-white transition-colors hover:bg-red-700">
+                  Sign Out
+                </button>
+              </div>
             ) : (
-              <Link href="/login" onClick={() => setIsOpen(false)} className="block mt-4 text-center bg-red-600 hover:bg-red-700 text-white px-5 py-3 rounded-md font-semibold transition-all shadow-[0_0_10px_rgba(229,9,20,0.4)]">Sign In</Link>
+              <Link href="/login" onClick={closeMenus} className="primary-button w-full justify-center">
+                Sign In
+              </Link>
             )}
           </div>
         </div>
