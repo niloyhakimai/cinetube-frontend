@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/shared/Navbar";
 import Footer from "@/components/shared/Footer";
+import AppMain from "@/components/shared/AppMain";
 import { AuthProvider } from "@/context/AuthContext";
 import FloatingAssistant from "@/components/ai/FloatingAssistant";
 
@@ -19,14 +20,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" data-scroll-behavior="smooth">
+    <html lang="en" data-scroll-behavior="smooth" data-theme="dark">
       <body className={`${inter.className} min-h-screen flex flex-col bg-[var(--color-background)] text-[var(--color-foreground)]`}>
         <AuthProvider>
           <Navbar />
-          {/* Added padding-top to prevent content from hiding behind the fixed navbar */}
-          <main className="grow pt-20">
-            {children}
-          </main>
+          <AppMain>{children}</AppMain>
           <Footer />
           <FloatingAssistant />
         </AuthProvider>

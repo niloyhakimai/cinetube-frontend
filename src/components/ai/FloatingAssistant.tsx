@@ -8,9 +8,15 @@ import { useAuth } from '@/context/AuthContext';
 type AssistantMessage = {
   role: 'assistant' | 'user';
   text: string;
-  recommendations?: string[];
+  recommendations?: Array<{
+    id: string;
+    title: string;
+    href: string;
+  }>;
   suggestions?: string[];
 };
+
+type ChatHistoryEntry = Pick<AssistantMessage, 'role' | 'text'>;
 
 type AssistantResponse = {
   source: 'groq' | 'fallback';
@@ -67,11 +73,30 @@ function labelSuggestionRoute(route: string) {
   return labels[route] || route.replace(/^\//, '') || 'Home';
 }
 
+function normalizeRecommendationKey(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function serializeRecommendationTitles(
+  recommendations: Array<{ title: string }> | undefined,
+) {
+  return (recommendations || [])
+    .map((item) => normalizeRecommendationKey(item.title))
+    .filter(Boolean)
+    .join('|');
+}
+
 function formatAssistantResponse(response: AssistantResponse) {
+  const uniqueRecommendations = (response.recommendations || []).filter((item, index, items) => {
+    const titleKey = normalizeRecommendationKey(item.title);
+
+    return items.findIndex((entry) => normalizeRecommendationKey(entry.title) === titleKey) === index;
+  });
+
   return {
     role: 'assistant' as const,
     text: response.message.trim(),
-    recommendations: response.recommendations?.slice(0, 3).map((item) => item.title) || [],
+    recommendations: uniqueRecommendations.slice(0, 3),
     suggestions: response.suggestions?.slice(0, 3).map(labelSuggestionRoute) || [],
   };
 }
@@ -165,6 +190,17 @@ export default function FloatingAssistant() {
       return;
     }
 
+    const history: ChatHistoryEntry[] = messages.slice(-6).map(({ role, text }) => ({
+      role,
+      text,
+    }));
+    const excludeMediaIds = messages
+      .flatMap((entry) => entry.recommendations?.map((item) => item.id) || [])
+      .slice(-12);
+    const excludeTitles = messages
+      .flatMap((entry) => entry.recommendations?.map((item) => item.title) || [])
+      .slice(-20);
+
     setMessages((current) => [...current, { role: 'user', text: trimmed }]);
     setInput('');
     setIsLoading(true);
@@ -173,6 +209,9 @@ export default function FloatingAssistant() {
       const mediaId = pathname.startsWith('/movies/') ? pathname.split('/').pop() : undefined;
       const response = await api.post<AssistantResponse>('/ai/chat', {
         message: trimmed,
+        history,
+        excludeMediaIds,
+        excludeTitles,
         context: {
           pathname,
           mediaId,
@@ -180,10 +219,21 @@ export default function FloatingAssistant() {
       });
 
       setLastSource(response.data.source);
-      setMessages((current) => [
-        ...current,
-        formatAssistantResponse(response.data),
-      ]);
+      setMessages((current) => {
+        const formatted = formatAssistantResponse(response.data);
+        const previousRecommendations = [...current]
+          .reverse()
+          .find((entry) => entry.role === 'assistant' && (entry.recommendations?.length || 0) > 0)
+          ?.recommendations;
+        const previousRecommendationTitles = serializeRecommendationTitles(previousRecommendations);
+        const currentRecommendationTitles = serializeRecommendationTitles(formatted.recommendations);
+
+        if (previousRecommendationTitles && currentRecommendationTitles && previousRecommendationTitles === currentRecommendationTitles) {
+          formatted.recommendations = [];
+        }
+
+        return [...current, formatted];
+      });
     } catch {
       const offlineResponse = buildOfflineAssistantResponse(trimmed, pathname);
       setLastSource('fallback');
@@ -202,10 +252,8 @@ export default function FloatingAssistant() {
   return (
     <div className="fixed inset-x-4 bottom-4 z-[80] flex justify-end sm:inset-x-auto sm:bottom-6 sm:right-6">
       {isOpen ? (
-        <div className="assistant-panel flex max-h-[78svh] w-full min-h-0 flex-col overflow-hidden rounded-2xl bg-[#0a0a0c] sm:h-[560px] sm:w-[24rem]">
-          
-          {/* Header - added shrink-0 to prevent squashing */}
-          <div className="flex shrink-0 items-center justify-between border-b border-[var(--color-border)] bg-[linear-gradient(180deg,rgba(20,20,22,0.98),rgba(10,10,12,0.94))] px-5 py-4">
+        <div className="assistant-panel flex max-h-[78svh] w-full min-h-0 flex-col overflow-hidden rounded-2xl sm:h-[560px] sm:w-[24rem]">
+          <div className="flex shrink-0 items-center justify-between border-b border-[var(--color-border)] bg-[var(--assistant-header-bg)] px-5 py-4 backdrop-blur-xl">
             <div>
               <p className="text-sm font-black uppercase tracking-[0.24em] text-red-400">CineTube AI</p>
               <p className="mt-1 text-sm text-[var(--color-muted)]">
@@ -228,9 +276,8 @@ export default function FloatingAssistant() {
             </button>
           </div>
 
-          {/* Quick Prompts - Hide once user starts chatting to give more space */}
           {!isChatStarted && (
-            <div className="shrink-0 border-b border-[var(--color-border)] bg-black/25 px-5 py-3 transition-all duration-300">
+            <div className="shrink-0 border-b border-[var(--color-border)] bg-[var(--assistant-section-bg)] px-5 py-3 transition-all duration-300">
               <div className="flex flex-wrap gap-2">
                 {quickPrompts.map((prompt) => (
                   <button
@@ -247,40 +294,37 @@ export default function FloatingAssistant() {
             </div>
           )}
 
-          {/* Chat Messages Area - flex-1 and min-h-0 so it scrolls properly */}
-          <div className="assistant-scrollbar flex min-h-0 flex-1 flex-col gap-4 overflow-x-hidden overflow-y-auto bg-[radial-gradient(circle_at_top,rgba(229,9,20,0.08),transparent_34%)] px-5 py-4">
+          <div className="assistant-scrollbar flex min-h-0 flex-1 flex-col gap-4 overflow-x-hidden overflow-y-auto bg-[var(--assistant-chat-bg)] px-5 py-4">
             {messages.map((message, index) => (
               <div
                 key={`${message.role}-${index}`}
                 className={`w-full min-w-0 max-w-[90%] rounded-2xl px-4 py-3 text-sm leading-6 ${
                   message.role === 'assistant'
-                    ? 'assistant-bubble text-white'
+                    ? 'assistant-bubble text-[var(--assistant-foreground)]'
                     : 'ml-auto bg-red-600 text-white'
                 }`}
               >
                 <p className="whitespace-pre-line break-words">{message.text}</p>
                 
-                {/* Assistant Recommendations */}
                 {message.role === 'assistant' && Boolean(message.recommendations?.length) && (
-                  <div className="mt-4 rounded-2xl border border-white/[0.08] bg-black/20 px-3 py-3">
+                  <div className="mt-4 rounded-2xl border border-[var(--assistant-chip-border)] bg-[var(--assistant-inline-bg)] px-3 py-3">
                     <p className="text-[11px] font-black uppercase tracking-[0.18em] text-red-300">Picks</p>
                     <div className="mt-2 flex flex-col gap-2">
                       {message.recommendations?.map((item) => (
-                        <p key={item} className="text-sm leading-6 text-white/90">
-                          {item}
+                        <p key={item.id} className="text-sm leading-6">
+                          {item.title}
                         </p>
                       ))}
                     </div>
                   </div>
                 )}
 
-                {/* AI inline suggestions inside message */}
                 {message.role === 'assistant' && Boolean(message.suggestions?.length) && (
                   <div className="mt-4 flex flex-wrap gap-2">
                     {message.suggestions?.map((item) => (
                       <span
                         key={item}
-                        className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1.5 text-[11px] font-semibold text-[var(--color-muted)]"
+                        className="rounded-full border border-[var(--assistant-chip-border)] bg-[var(--assistant-chip-bg)] px-3 py-1.5 text-[11px] font-semibold text-[var(--color-muted)]"
                       >
                         {item}
                       </span>
@@ -297,13 +341,12 @@ export default function FloatingAssistant() {
             <div ref={messagesEndRef} className="h-1 shrink-0" />
           </div>
 
-          {/* Input Form - Added shrink-0 and relative positioning to prevent it from hiding under chat */}
           <form
             onSubmit={(event) => {
               event.preventDefault();
               handleSend(input);
             }}
-            className="relative z-10 shrink-0 border-t border-[var(--color-border)] bg-[rgba(10,10,12,0.98)] px-4 py-4"
+            className="relative z-10 shrink-0 border-t border-[var(--color-border)] bg-[var(--assistant-input-bg)] px-4 py-4 backdrop-blur-xl"
           >
             <div className="flex items-center gap-2 sm:gap-3">
               <input
@@ -311,7 +354,7 @@ export default function FloatingAssistant() {
                 onChange={(event) => setInput(event.target.value)}
                 disabled={isLoading}
                 placeholder="Ask about titles, plans, or navigation..."
-                className="input-shell min-w-0 flex-1 !border-white/10 !bg-[#101014]"
+                className="input-shell min-w-0 flex-1 !border-[var(--assistant-field-border)] !bg-[var(--assistant-field-bg)]"
               />
               <button type="submit" disabled={isLoading} className="primary-button shrink-0 !px-5 !py-3">
                 Send

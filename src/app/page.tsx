@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Hero from "@/components/home/Hero";
 import MovieSlider from "@/components/home/MovieSlider";
+import TopWeekCarousel from "@/components/home/TopWeekCarousel";
 import Pricing from "@/components/home/Pricing";
 import { api } from '@/lib/axios';
 import { FALLBACK_POSTER } from '@/utils/mediaRoute';
@@ -15,6 +16,7 @@ interface CatalogItem {
   title: string;
   posterUrl?: string | null;
   backdropUrl?: string | null;
+  previewLink?: string | null;
   averageRating?: number;
   releaseYear: number;
   genre: string[];
@@ -58,6 +60,7 @@ function toSliderItems(items: CatalogItem[]): SliderItem[] {
 
 export default function Home() {
   const [featured, setFeatured] = useState<CatalogItem | null>(null);
+  const [heroSlides, setHeroSlides] = useState<CatalogItem[]>([]);
   const [trendingNow, setTrendingNow] = useState<SliderItem[]>([]);
   const [topRatedThisWeek, setTopRatedThisWeek] = useState<SliderItem[]>([]);
   const [newlyAdded, setNewlyAdded] = useState<SliderItem[]>([]);
@@ -93,6 +96,7 @@ export default function Home() {
         const aiPayload = aiResult.status === 'fulfilled' ? aiResult.value.data as AiRecommendationResponse : null;
         const tmdbPopular = (tmdbHome?.popularMovies || []) as CatalogItem[];
         const tmdbTrendingSeries = (tmdbHome?.trendingSeries || []) as CatalogItem[];
+        const tmdbHeroSlides = (tmdbHome?.heroSlides || []) as CatalogItem[];
 
         const localEditors =
           ((localHome?.editorsPicks || []) as CatalogItem[]).filter((item) => item.source !== 'TMDB');
@@ -108,6 +112,7 @@ export default function Home() {
           localEditors.length > 0 ? localEditors : localNewlyAdded.length > 0 ? localNewlyAdded : tmdbPopular;
 
         setFeatured((tmdbHome?.featured as CatalogItem | null) || localEditors[0] || localNewlyAdded[0] || tmdbPopular[0] || null);
+        setHeroSlides(tmdbHeroSlides.length > 0 ? tmdbHeroSlides : ((tmdbHome?.featured ? [tmdbHome.featured] : []) as CatalogItem[]));
         setTrendingNow(toSliderItems([...tmdbPopular.slice(0, 6), ...tmdbTrendingSeries.slice(0, 6)]));
         setTopRatedThisWeek(toSliderItems(mergedTopRated));
         setNewlyAdded(toSliderItems(newlyAddedSource.slice(0, 12)));
@@ -153,7 +158,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-[#050505]">
-      <Hero featuredData={featured} />
+      <Hero featuredData={featured} featuredSlides={heroSlides} />
 
       <section className="mx-auto grid max-w-7xl gap-4 px-4 pb-12 pt-10 sm:px-6 md:grid-cols-2 xl:grid-cols-4 lg:px-8">
         {platformStats.map((item) => (
@@ -175,7 +180,7 @@ export default function Home() {
 
       <div className="relative z-10 pb-6">
         <MovieSlider title="Trending Now" movies={trendingNow} />
-        <MovieSlider title="Top Rated This Week" movies={topRatedThisWeek} />
+        <TopWeekCarousel title="Top Rated This Week" movies={topRatedThisWeek} />
         <MovieSlider title="Newly Added" movies={newlyAdded} />
         <MovieSlider title="Editor's Picks" movies={editorsPicks} />
       </div>

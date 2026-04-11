@@ -13,6 +13,100 @@
   --success: #2db36f;
   --danger: #ef4444;
   --focus-ring: rgba(229, 9, 20, 0.35);
+  --body-glow: radial-gradient(circle at top, rgba(229, 9, 20, 0.12), transparent 28%);
+  --body-wash: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent);
+  --surface-gradient-start: rgba(255, 255, 255, 0.03);
+  --surface-gradient-end: rgba(255, 255, 255, 0.015);
+  --surface-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+  --secondary-button-start: rgba(32, 32, 36, 0.92);
+  --secondary-button-end: rgba(18, 18, 22, 0.94);
+  --secondary-button-hover-start: rgba(44, 44, 48, 0.96);
+  --secondary-button-hover-end: rgba(24, 24, 28, 0.96);
+  --secondary-button-border: rgba(255, 255, 255, 0.12);
+  --secondary-button-highlight: rgba(255, 255, 255, 0.03);
+  --secondary-button-text: #f5f6fb;
+  --input-bg: rgba(16, 16, 20, 0.94);
+  --input-bg-focus: rgba(24, 24, 28, 0.98);
+  --input-placeholder: #6f7684;
+  --input-highlight: rgba(255, 255, 255, 0.03);
+  --nav-pill-bg: rgba(12, 12, 14, 0.86);
+  --nav-panel-bg: rgba(10, 10, 12, 0.96);
+  --nav-shell-bg: rgba(16, 16, 16, 0.92);
+  --nav-shell-bg-strong: rgba(21, 21, 21, 0.98);
+  --nav-drawer-bg: rgba(7, 7, 9, 0.94);
+  --nav-border-strong: rgba(255, 255, 255, 0.1);
+  --nav-hover-bg: rgba(255, 255, 255, 0.07);
+  --nav-foreground: #ffffff;
+  --nav-muted: #a7adbb;
+  --footer-bg: rgba(0, 0, 0, 0.58);
+  --footer-heading: #ffffff;
+  --assistant-panel-start: rgba(18, 18, 20, 0.97);
+  --assistant-panel-end: rgba(8, 8, 10, 0.99);
+  --assistant-bubble-start: rgba(34, 34, 38, 0.92);
+  --assistant-bubble-end: rgba(20, 20, 24, 0.94);
+  --assistant-bubble-border: rgba(255, 255, 255, 0.08);
+  --assistant-header-bg: rgba(16, 16, 18, 0.92);
+  --assistant-section-bg: rgba(0, 0, 0, 0.22);
+  --assistant-chat-bg: rgba(7, 7, 10, 0.82);
+  --assistant-input-bg: rgba(10, 10, 12, 0.98);
+  --assistant-inline-bg: rgba(0, 0, 0, 0.2);
+  --assistant-field-bg: rgba(16, 16, 20, 0.94);
+  --assistant-field-border: rgba(255, 255, 255, 0.1);
+  --assistant-foreground: #ffffff;
+  --assistant-chip-bg: rgba(255, 255, 255, 0.06);
+  --assistant-chip-border: rgba(255, 255, 255, 0.1);
+}
+
+html[data-theme="light"] {
+  --background: #f4f5f8;
+  --foreground: #141820;
+  --surface: rgba(255, 255, 255, 0.84);
+  --surface-strong: #ffffff;
+  --border: rgba(15, 23, 42, 0.12);
+  --muted: #596173;
+  --focus-ring: rgba(229, 9, 20, 0.16);
+  --body-glow: radial-gradient(circle at top, rgba(229, 9, 20, 0.08), transparent 26%);
+  --body-wash: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(244, 245, 248, 0.92));
+  --surface-gradient-start: rgba(255, 255, 255, 0.84);
+  --surface-gradient-end: rgba(247, 248, 250, 0.92);
+  --surface-shadow: 0 20px 44px rgba(15, 23, 42, 0.08);
+  --secondary-button-start: rgba(255, 255, 255, 0.92);
+  --secondary-button-end: rgba(248, 249, 251, 0.96);
+  --secondary-button-hover-start: rgba(255, 255, 255, 0.98);
+  --secondary-button-hover-end: rgba(240, 242, 246, 0.98);
+  --secondary-button-border: rgba(15, 23, 42, 0.1);
+  --secondary-button-highlight: rgba(255, 255, 255, 0.92);
+  --secondary-button-text: #141820;
+  --input-bg: rgba(255, 255, 255, 0.94);
+  --input-bg-focus: rgba(255, 255, 255, 1);
+  --input-placeholder: #7a8394;
+  --input-highlight: rgba(255, 255, 255, 0.92);
+  --nav-pill-bg: rgba(255, 255, 255, 0.76);
+  --nav-panel-bg: rgba(255, 255, 255, 0.96);
+  --nav-shell-bg: rgba(255, 255, 255, 0.9);
+  --nav-shell-bg-strong: rgba(249, 250, 252, 0.98);
+  --nav-drawer-bg: rgba(255, 255, 255, 0.96);
+  --nav-border-strong: rgba(15, 23, 42, 0.12);
+  --nav-hover-bg: rgba(15, 23, 42, 0.06);
+  --nav-foreground: #101828;
+  --nav-muted: #596173;
+  --footer-bg: rgba(255, 255, 255, 0.72);
+  --footer-heading: #101828;
+  --assistant-panel-start: rgba(255, 255, 255, 0.98);
+  --assistant-panel-end: rgba(247, 248, 250, 0.98);
+  --assistant-bubble-start: rgba(255, 255, 255, 0.96);
+  --assistant-bubble-end: rgba(244, 246, 249, 0.98);
+  --assistant-bubble-border: rgba(15, 23, 42, 0.08);
+  --assistant-header-bg: rgba(255, 255, 255, 0.82);
+  --assistant-section-bg: rgba(15, 23, 42, 0.04);
+  --assistant-chat-bg: rgba(248, 249, 251, 0.78);
+  --assistant-input-bg: rgba(255, 255, 255, 0.88);
+  --assistant-inline-bg: rgba(15, 23, 42, 0.04);
+  --assistant-field-bg: rgba(255, 255, 255, 0.96);
+  --assistant-field-border: rgba(15, 23, 42, 0.08);
+  --assistant-foreground: #141820;
+  --assistant-chip-bg: rgba(15, 23, 42, 0.05);
+  --assistant-chip-border: rgba(15, 23, 42, 0.08);
 }
 
 @theme inline {
@@ -42,9 +136,7 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
   min-height: 100vh;
-  background-image:
-    radial-gradient(circle at top, rgba(229, 9, 20, 0.12), transparent 28%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent);
+  background-image: var(--body-glow), var(--body-wash);
 }
 
 .glass-premium {
@@ -65,17 +157,16 @@ body {
 }
 
 .surface-panel {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.015));
+  background: linear-gradient(180deg, var(--surface-gradient-start), var(--surface-gradient-end));
   border: 1px solid var(--border);
   border-radius: 1.5rem;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--surface-shadow);
 }
 
 .assistant-panel {
-  background:
-    linear-gradient(180deg, rgba(18, 18, 20, 0.97), rgba(8, 8, 10, 0.99));
+  background: linear-gradient(180deg, var(--assistant-panel-start), var(--assistant-panel-end));
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 2rem;
   box-shadow:
@@ -86,13 +177,13 @@ body {
 }
 
 .assistant-bubble {
-  background: linear-gradient(180deg, rgba(34, 34, 38, 0.92), rgba(20, 20, 24, 0.94));
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, var(--assistant-bubble-start), var(--assistant-bubble-end));
+  border: 1px solid var(--assistant-bubble-border);
 }
 
 @supports ((backdrop-filter: blur(24px)) or (-webkit-backdrop-filter: blur(24px))) {
   .assistant-panel {
-    background: linear-gradient(180deg, rgba(20, 20, 22, 0.9), rgba(8, 8, 10, 0.96));
+    background: linear-gradient(180deg, var(--assistant-panel-start), var(--assistant-panel-end));
   }
 }
 
@@ -118,14 +209,14 @@ body {
 }
 
 .secondary-button {
-  background: linear-gradient(180deg, rgba(32, 32, 36, 0.92), rgba(18, 18, 22, 0.94));
-  color: var(--foreground);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  background: linear-gradient(180deg, var(--secondary-button-start), var(--secondary-button-end));
+  color: var(--secondary-button-text);
+  border: 1px solid var(--secondary-button-border);
+  box-shadow: inset 0 1px 0 var(--secondary-button-highlight);
 }
 
 .secondary-button:hover {
-  background: linear-gradient(180deg, rgba(44, 44, 48, 0.96), rgba(24, 24, 28, 0.96));
+  background: linear-gradient(180deg, var(--secondary-button-hover-start), var(--secondary-button-hover-end));
 }
 
 .input-shell,
@@ -134,17 +225,17 @@ body {
   width: 100%;
   border-radius: 1rem;
   border: 1px solid var(--border);
-  background: rgba(16, 16, 20, 0.94);
+  background: var(--input-bg);
   color: var(--foreground);
   padding: 0.9rem 1rem;
   outline: none;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  box-shadow: inset 0 1px 0 var(--input-highlight);
   transition: border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
 }
 
 .input-shell::placeholder,
 .textarea-shell::placeholder {
-  color: #6f7684;
+  color: var(--input-placeholder);
 }
 
 .input-shell:focus,
@@ -152,7 +243,7 @@ body {
 .textarea-shell:focus {
   border-color: rgba(229, 9, 20, 0.45);
   box-shadow: 0 0 0 4px var(--focus-ring);
-  background: rgba(24, 24, 28, 0.98);
+  background: var(--input-bg-focus);
 }
 
 .pill-label {

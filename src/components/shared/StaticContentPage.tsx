@@ -19,7 +19,7 @@ export default function StaticContentPage({
   return (
     <div className="min-h-screen bg-[var(--color-background)] text-[var(--color-foreground)]">
       <section className="border-b border-[var(--color-border)] bg-[radial-gradient(circle_at_top,rgba(229,9,20,0.18),transparent_32%),linear-gradient(180deg,rgba(255,255,255,0.02),transparent)]">
-        <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-6xl px-4 pb-20 pt-28 sm:px-6 sm:pb-24 sm:pt-32 lg:px-8">
           <span className="pill-label">{eyebrow}</span>
           <h1 className="mt-6 max-w-3xl text-4xl font-black tracking-tight sm:text-5xl">{title}</h1>
           <p className="mt-5 max-w-3xl text-lg leading-8 text-[var(--color-muted)]">{intro}</p>

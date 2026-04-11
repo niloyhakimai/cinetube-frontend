@@ -10,7 +10,7 @@ const supportLinks = [
 
 export default function Footer() {
   return (
-    <footer className="border-t border-[var(--color-border)] bg-black/60">
+    <footer className="border-t border-[var(--color-border)] bg-[var(--footer-bg)] backdrop-blur-xl">
       <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[1.2fr_1fr_1fr] lg:px-8">
         <div>
           <h2 className="text-2xl font-black uppercase tracking-[0.24em] text-red-500">CineTube</h2>
@@ -20,10 +20,10 @@ export default function Footer() {
         </div>
 
         <div>
-          <h3 className="text-sm font-black uppercase tracking-[0.24em] text-white">Navigate</h3>
+          <h3 className="text-sm font-black uppercase tracking-[0.24em] text-[var(--footer-heading)]">Navigate</h3>
           <div className="mt-4 space-y-3">
             {primaryNavLinks.map((link) => (
-              <Link key={link.href} href={link.href} className="block text-sm text-[var(--color-muted)] transition-colors hover:text-white">
+              <Link key={link.href} href={link.href} className="block text-sm text-[var(--color-muted)] transition-colors hover:text-[var(--footer-heading)]">
                 {link.label}
               </Link>
             ))}
@@ -31,14 +31,14 @@ export default function Footer() {
         </div>
 
         <div>
-          <h3 className="text-sm font-black uppercase tracking-[0.24em] text-white">Support</h3>
+          <h3 className="text-sm font-black uppercase tracking-[0.24em] text-[var(--footer-heading)]">Support</h3>
           <div className="mt-4 space-y-3">
             {supportLinks.map((link) => (
-              <Link key={link.href} href={link.href} className="block text-sm text-[var(--color-muted)] transition-colors hover:text-white">
+              <Link key={link.href} href={link.href} className="block text-sm text-[var(--color-muted)] transition-colors hover:text-[var(--footer-heading)]">
                 {link.label}
               </Link>
             ))}
-            <Link href="/blog" className="block text-sm text-[var(--color-muted)] transition-colors hover:text-white">
+            <Link href="/blog" className="block text-sm text-[var(--color-muted)] transition-colors hover:text-[var(--footer-heading)]">
               Blog
             </Link>
           </div>
@@ -47,11 +47,11 @@ export default function Footer() {
 
       <div className="mx-auto max-w-7xl border-t border-[var(--color-border)] px-4 py-10 sm:px-6 lg:px-8">
         <div>
-          <h3 className="text-sm font-black uppercase tracking-[0.24em] text-white">Editorial</h3>
+          <h3 className="text-sm font-black uppercase tracking-[0.24em] text-[var(--footer-heading)]">Editorial</h3>
           <div className="mt-4 grid gap-4 lg:grid-cols-3">
             {blogHighlights.map((item) => (
               <div key={item.slug}>
-                <Link href="/blog" className="text-sm font-semibold text-white transition-colors hover:text-red-400">
+                <Link href="/blog" className="text-sm font-semibold text-[var(--footer-heading)] transition-colors hover:text-red-400">
                   {item.title}
                 </Link>
                 <p className="mt-1 text-xs leading-6 text-[var(--color-muted)]">{item.excerpt}</p>
